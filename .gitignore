@@ -1,3 +1,6 @@
+# test specific items
+test/data/
+
 # snakemake specific items
 snakemake/
 
