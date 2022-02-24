@@ -44,10 +44,22 @@ if STAR_CGI_configs["premade_index_path"] is None:
 # Alignment using STAR
 rule STAR_Align_Reads:
     input:
-        genome_index_dir = STAR_CGI_configs["STAR_indices_path"]
-        fastq_reads1 = utils.resolve_SEvPE_fastq(sequencing_metadata)
+        genome_index_dir = STAR_CGI_configs["STAR_indices_path"],
+        fastq_reads1 = utils.resolve_SEvPE_fastq(sequencing_metadata),
         fastq_reads2 = utils.resolve_SEvPE_fastq(sequencing_metadata)
+    params:
+        nthreads = STAR_Align_configs["nthreads"],
+        outdir_or_prefix = STAR_Align_configs["outdir_or_prefix"],
+        output_SAM_type = STAR_Align_configs["outSAMtype"],
+        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"]
+        output_SAM_attributes = STAR_Align_configs["outSAMattributes"]
+        extra_args = STAR_Align_configs["extra_args"]
     shell:
         "STAR --runThread {params.nthreads}"
-        " --genomeDir {input.genome_index_dir} "
-        ""
+        " --genomeDir {input.genome_index_dir}"
+        " --readFilesIn {input.fastq_reads1} {input.fastq_reads2}"
+        " --outFileNamePrefix {params.outdir_or_prefix}"
+        " --outSAMtype {params.output_SAM_type}"
+        " --outSAMunmapped {params.output_SAM_unmapped}"
+        " --outSAMattributes {params.output_SAM_attributes}"
+        " {params.extra_args}"
