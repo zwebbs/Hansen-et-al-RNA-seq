@@ -2,7 +2,7 @@
 test/data/
 
 # snakemake specific items
-snakemake/
+.snakemake/
 
 
 # Byte-compiled / optimized / DLL files

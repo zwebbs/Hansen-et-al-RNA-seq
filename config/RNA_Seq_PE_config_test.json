@@ -2,11 +2,11 @@
     "sample-metadata":"test/sample_metadata_test.txt",
     "rule_params":{
         "STAR_CGI":{
-            "nthreads":6,
-            "ref_fasta":"$HOME/Ref/genomes/GRCh38.p13.fa",
-            "transcript_gtf":"$HOME/Ref/transcripts/NCBI_RefSeq_Curated.gtf",
+            "nthreads":24,
+            "ref_fasta":"/project2/nobrega/zach/Ref/genomes/GRCh38_p13.fa",
+            "transcript_gtf":"/project2/nobrega/zach/Ref/transcripts/GRCh38_p13.NCBI_RefSeq.gtf",
             "sjdbOverhang":130,
-            "STAR_indices_path":"$HOME/Ref/STAR/hg38/",
+            "STAR_indices_path":"/project2/nobrega/zach/Ref/STAR/GRCh38_p13/",
             "premade_index_path":null
 
         },

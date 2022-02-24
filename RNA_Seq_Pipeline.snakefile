@@ -32,6 +32,7 @@ if STAR_CGI_configs["premade_index_path"] is None:
             transcript_gtf_path = STAR_CGI_configs["transcript_gtf"],
             junction_overhang_limit = STAR_CGI_configs["sjdbOverhang"]
         shell:
+            "mkdir {output.genome_index_dir} && "
             "STAR --runThreadN {params.nthreads}"
             " --runMode genomeGenerate"
             " --genomeDir {output.genome_index_dir}"
