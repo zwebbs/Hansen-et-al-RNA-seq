@@ -5,13 +5,16 @@
 # both single-end and paired-end sequencing
 
 # library + module imports
-import src.config_utils as utils
-
+import src.config_utils as conf_utils
+import src.sequencing_utils  as seq_utils
 
 # configuration and setup
 configfile: "config/RNA_Seq_PE_config_test.json"
-STAR_CGI_configs = utils.extract_rule_params("STAR_CGI", config)
-STAR_Align_configs = utils.extract_rule_params("STAR_align",config)
+STAR_CGI_configs = conf_utils.extract_rule_params("STAR_CGI", config)
+STAR_Align_configs = conf_utils.extract_rule_params("STAR_align",config)
+
+# sample metadata processing
+sample_metadata = pd.read_csv(config["sample_metadata"])
 
 
 # workflow
@@ -45,14 +48,14 @@ if STAR_CGI_configs["premade_index_path"] is None:
 rule STAR_Align_Reads:
     input:
         genome_index_dir = STAR_CGI_configs["STAR_indices_path"],
-        fastq_reads1 = utils.resolve_SEvPE_fastq(sequencing_metadata),
-        fastq_reads2 = utils.resolve_SEvPE_fastq(sequencing_metadata)
+        fastq_reads1 = seq_utils.STAR_resolve_fastq_PEvSE(sample_metadata),
+        fastq_reads2 = seq_utils.STAR_resolve_fastq_PEvSE(sample_metadata)
     params:
         nthreads = STAR_Align_configs["nthreads"],
         outdir_or_prefix = STAR_Align_configs["outdir_or_prefix"],
         output_SAM_type = STAR_Align_configs["outSAMtype"],
-        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"]
-        output_SAM_attributes = STAR_Align_configs["outSAMattributes"]
+        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
+        output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
         extra_args = STAR_Align_configs["extra_args"]
     shell:
         "STAR --runThread {params.nthreads}"
