@@ -16,7 +16,7 @@ def extract_rule_params(rule_id, config_dict):
     if type(rule_params[rule_id]) is dict:
         return rule_params[rule_id]
     else:
-        err_msg = f"Error. rule params could not be extracted "
+        err_msg = "Error. rule params could not be extracted "
         rule_msg = f"passed rule_id: ['{rule_id}'] "
         config_msg = f"check config dict: {config_dict}"
         raise exceptions.UserError(message=err_msg+rule_msg+config_msg)
@@ -41,7 +41,7 @@ def STAR_manifest_from_sample_metadata(sample_metadata_tbl, outfile_path):
 
     # generate and write final DataFrame
     fmtd_dat = [[f1,f2,rg] for (f1,f2,rg) in zip(fastq_1, fastq_2, RG_info)]
-    print(pd.DataFrame(fmtd_dat))
+    fmtd_dat.to_csv(outfile_path, sep='\t',header=False, index=False)
 
 if __name__ == "__main__":
     sample_metadata = pd.read_csv("test/sample_metadata_test.txt",sep="\t")

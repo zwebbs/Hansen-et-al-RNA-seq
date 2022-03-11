@@ -1,4 +1,5 @@
 {
+    "analysis_id":"test-1",
     "sample_metadata":"test/sample_metadata_test.txt",
     "rule_params":{
         "STAR_CGI":{
@@ -12,7 +13,7 @@
         },
         "STAR_align":{
             "nthreads":24,
-            "outdir_or_prefix": "/project2/nobrega/zach/RNA_Seq_Pipeline/test/data/",
+            "outdir": "/project2/nobrega/zach/RNA_Seq_Pipeline/test/data/",
             "outSAMtype": "BAM SortedByCoordinate",
             "outSAMunmapped":"Within",
             "outSAMattributes":"Standard",
