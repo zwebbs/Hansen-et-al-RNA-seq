@@ -22,7 +22,7 @@ module load STAR/2.6.1b
 
 # run the snakemake workflow
 snakemake --snakefile RNA_Seq_Pipeline.snakefile \
-    -j 5 --configfile config/RNA_Seq_PE_config_test.json
+    -j 5 --configfile test/RNA_Seq_PE_config_test.json
 
 
 

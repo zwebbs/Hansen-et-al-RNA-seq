@@ -4,7 +4,7 @@
 # Purpose: Provides auxillary methods for readability and
 # portability of snakemake file configuration
 
-from exceptions import UserError
+from .exceptions import UserError
 import pandas as pd
 
 # method definitions
