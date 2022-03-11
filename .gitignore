@@ -1,5 +1,7 @@
 # test specific items
 test/data/
+*.out
+*.err
 
 # snakemake specific items
 .snakemake/

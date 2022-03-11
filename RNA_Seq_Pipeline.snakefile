@@ -5,6 +5,7 @@
 # both single-end and paired-end sequencing
 
 # library + module imports
+import pandas as pd
 import src.config_utils as conf_utils
 
 # configuration and setup
