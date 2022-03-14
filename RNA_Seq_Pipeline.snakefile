@@ -15,14 +15,15 @@ STAR_CGI_configs = conf_utils.extract_rule_params("STAR_CGI", config)
 STAR_Align_configs = conf_utils.extract_rule_params("STAR_align",config)
 
 # sample metadata processing
-sample_metadata = pd.read_csv(config["sample_metadata"])
-STAR_manifest_filename = f"{analysis_id}.manifest"
-STAR_manifest_from_sample_metadata(sample_metadata, STAR_manifest_filename)
+sample_metadata = pd.read_csv(config["sample_metadata"], sep='\s+')
+STAR_manifest_filename = f"{analysis_id}_manifest.tsv"
+conf_utils.STAR_manifest_from_sample_metadata(sample_metadata, STAR_manifest_filename)
 
 # workflow
 rule all:
     input:
-        directory(STAR_CGI_configs["STAR_indices_path"])
+        directory(STAR_CGI_configs["STAR_indices_path"]),
+        STAR_Align_configs["outdir"] + f"{analysis_id}.Aligned.out.bam"
 
 
 # Create Genome Index using STAR if not already created
@@ -58,9 +59,12 @@ rule STAR_Align_Reads:
         output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
         output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
         extra_args = STAR_Align_configs["extra_args"]
+    output:
+        alignment = STAR_Align_configs["outdir"] + f"{analysis_id}.Aligned.out.bam"
     shell:
-        "STAR --runThread {params.nthreads}"
-        " --genomeDir {input.genome_index_dir}"
+        "STAR --runThreadN {params.nthreads}"
+        " --runMode alignReads"
+        " --genomeDir {input.genome_index_dir}/"
         " --readFilesManifest {input.file_manifest}"
         " --outFileNamePrefix {params.outdir_fprefix}"
         " --outSAMtype {params.output_SAM_type}"

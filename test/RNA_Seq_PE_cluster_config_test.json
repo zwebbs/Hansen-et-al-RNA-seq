@@ -1,0 +1,32 @@
+
+{
+    "__default__" :{
+        "time":"00:30:00",
+        "nodes":1,
+        "ntasks_per_node":2,
+        "cpus_per_task":2,
+        "mem_per_cpu":"2G",
+        "job_name":"_untitled_",
+        "error":"_untitled_.err",
+        "output":"_untitled_.out"
+    },
+    "STAR_Create_Genome_Indices":{
+        "time":"04:00:00",
+        "nodes":2,
+        "ntasks_per_node":4,
+        "cpus-per-task":6,
+        "job_name":"STAR_Create_Genome_Indices",
+        "error":"STAR_Create_Genome_Indices.err",
+        "error":"STAR_Create_Genome_Indices.out"
+    },
+    "STAR_Align_Reads":{
+        "time":"02:30:00",
+        "nodes":2,
+        "ntasks_per_node":4,
+        "cpus-per-task":6,
+        "job_name":"STAR_Align_Reads",
+        "error":"STAR_Align_Reads.err",
+        "error":"STAR_Align_Reads.out"
+    }
+}
+

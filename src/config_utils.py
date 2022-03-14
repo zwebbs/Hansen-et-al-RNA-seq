@@ -41,6 +41,7 @@ def STAR_manifest_from_sample_metadata(sample_metadata_tbl, outfile_path):
 
     # generate and write final DataFrame
     fmtd_dat = [[f1,f2,rg] for (f1,f2,rg) in zip(fastq_1, fastq_2, RG_info)]
+    fmtd_dat = pd.DataFrame(fmtd_dat)
     fmtd_dat.to_csv(outfile_path, sep='\t',header=False, index=False)
 
 if __name__ == "__main__":
