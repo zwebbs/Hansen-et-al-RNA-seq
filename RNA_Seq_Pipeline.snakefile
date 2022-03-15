@@ -37,6 +37,12 @@ if STAR_CGI_configs["premade_index_path"] is None:
             fasta_path = STAR_CGI_configs["ref_fasta"],
             transcript_gtf_path = STAR_CGI_configs["transcript_gtf"],
             junction_overhang_limit = STAR_CGI_configs["sjdbOverhang"]
+        resources:
+            time = STAR_CGI_configs["cluster_time"],
+            nodes = STAR_CGI_configs["cluster_nodes"],  
+            ntasks_per_node = STAR_CGI_configs["cluster_ntasks_per_node"],
+            cpus_per_task = STAR_CGI_configs["cluster_cpus_per_task"],
+            mem_per_cpu = STAR_CGI_configs["cluster_mem_per_cpu"]
         shell:
             "mkdir {output.genome_index_dir} && "
             "STAR --runThreadN {params.nthreads}"
@@ -61,11 +67,18 @@ rule STAR_Align_Reads:
         extra_args = STAR_Align_configs["extra_args"]
     output:
         alignment = STAR_Align_configs["outdir"] + f"{analysis_id}.Aligned.out.bam"
+    resources:
+        time = STAR_Align_configs["cluster_time"],
+        nodes = STAR_Align_configs["cluster_nodes"],         
+        ntasks_per_node = STAR_Align_configs["cluster_ntasks_per_node"],
+        cpus_per_task = STAR_Align_configs["cluster_cpus_per_task"],  
+        mem_per_cpu = STAR_Align_configs["cluster_mem_per_cpu"]
     shell:
         "STAR --runThreadN {params.nthreads}"
         " --runMode alignReads"
         " --genomeDir {input.genome_index_dir}/"
         " --readFilesManifest {input.file_manifest}"
+        " --readFilesCommand gunzip -c"
         " --outFileNamePrefix {params.outdir_fprefix}"
         " --outSAMtype {params.output_SAM_type}"
         " --outSAMunmapped {params.output_SAM_unmapped}"

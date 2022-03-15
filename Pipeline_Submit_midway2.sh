@@ -20,19 +20,18 @@ module load STAR/2.7.7a
 
 # run the snakemake workflow
 snakemake --snakefile RNA_Seq_Pipeline.snakefile \
-    -j 5 --configfile test/RNA_Seq_PE_config_test.json \
-    --cluster-config test/RNA_Seq_PE_cluster_config_test.json \
+    -j 28 -kp --rerun-incomplete --configfile test/RNA_Seq_PE_config_test.json \
     --cluster "sbatch \
-     --nodes={cluster.nodes} \
-     --ntasks-per-node={cluster.ntasks_per_node} \
-     --cpus-per-task={cluster.cpu_per_tasks} \
-     --mem-per-cpu={cluster.mem_per_cpu} \
-     --job-name={cluster.job_name} \
-     --error={cluster.error} \
-     --output={cluster.output} \
-     --time={cluster.time} \
-     --partition=broadwl
-    "
+     --nodes={resources.nodes} \
+     --ntasks-per-node={resources.ntasks_per_node} \
+     --cpus-per-task={resources.cpus_per_task} \
+     --mem-per-cpu={resources.mem_per_cpu} \
+     --job-name={rulename} \
+     --error={rulename}.err \
+     --output={rulename}.out \
+     --time={resources.time} \
+     --partition=broadwl" \
+     $*
 
 
 

@@ -3,21 +3,31 @@
     "sample_metadata":"test/sample_metadata_test.txt",
     "rule_params":{
         "STAR_CGI":{
-            "nthreads":24,
+            "nthreads":4,
             "ref_fasta":"/project2/nobrega/zach/Ref/genomes/GRCh38_p13.fa",
             "transcript_gtf":"/project2/nobrega/zach/Ref/transcripts/GRCh38_p13.NCBI_RefSeq.gtf",
             "sjdbOverhang":130,
             "STAR_indices_path":"/project2/nobrega/zach/Ref/STAR/GRCh38_p13/",
-            "premade_index_path":null
+            "premade_index_path":null,
+            "cluster_time":"04:00:00",
+            "cluster_nodes":2,  
+            "cluster_ntasks_per_node":4,
+            "cluster_cpus_per_task":6,
+            "cluster_mem_per_cpu":2000
 
         },
         "STAR_align":{
-            "nthreads":24,
+            "nthreads":4,
             "outdir": "/project2/nobrega/zach/RNA_Seq_Pipeline/test/data/",
             "outSAMtype": "BAM SortedByCoordinate",
             "outSAMunmapped":"Within",
             "outSAMattributes":"Standard",
-            "extra_args":""
+            "extra_args":"",
+            "cluster_time":"02:30:00",
+            "cluster_nodes":2,  
+            "cluster_ntasks_per_node":4,
+            "cluster_cpus_per_task":6,
+            "cluster_mem_per_cpu":2000
         }
     }
 }
