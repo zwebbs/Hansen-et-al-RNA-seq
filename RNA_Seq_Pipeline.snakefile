@@ -43,6 +43,7 @@ if STAR_CGI_configs["premade_index_path"] is None:
             ntasks_per_node = STAR_CGI_configs["cluster_ntasks_per_node"],
             cpus_per_task = STAR_CGI_configs["cluster_cpus_per_task"],
             mem_per_cpu = STAR_CGI_configs["cluster_mem_per_cpu"],
+            logdir = "logs/",
             job_id = ""
         shell:
             "mkdir {output.genome_index_dir} && "
@@ -75,6 +76,7 @@ rule STAR_Align_Reads:
         ntasks_per_node = STAR_Align_configs["cluster_ntasks_per_node"],
         cpus_per_task = STAR_Align_configs["cluster_cpus_per_task"],  
         mem_per_cpu = STAR_Align_configs["cluster_mem_per_cpu"],
+        logdir = "logs/",
         job_id = lambda wildcards: wildcards.sample_id
     shell:
         "STAR --runThreadN {params.nthreads}"

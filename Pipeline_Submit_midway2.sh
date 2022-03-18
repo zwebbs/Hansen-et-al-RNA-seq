@@ -27,8 +27,8 @@ snakemake --snakefile RNA_Seq_Pipeline.snakefile \
      --cpus-per-task={resources.cpus_per_task} \
      --mem-per-cpu={resources.mem_per_cpu} \
      --job-name={rulename}_{resources.job_id} \
-     --error={rulename}_{resources.job_id}.err \
-     --output={rulename}_{resources.job_id}.out \
+     --error={resources.logdir}{rulename}_{resources.job_id}.err \
+     --output={resources.logdir}{rulename}_{resources.job_id}.out \
      --time={resources.time} \
      --partition=broadwl" \
      $*
