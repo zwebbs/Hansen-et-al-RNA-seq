@@ -23,8 +23,8 @@
             "outSAMunmapped":"Within",
             "outSAMattributes":"Standard",
             "extra_args":"",
-            "cluster_time":"02:30:00",
-            "cluster_nodes":2,  
+            "cluster_time":"01:00:00",
+            "cluster_nodes":1,  
             "cluster_ntasks_per_node":4,
             "cluster_cpus_per_task":6,
             "cluster_mem_per_cpu":2000
