@@ -16,7 +16,7 @@
             "cluster_mem_per_cpu":2000
 
         },
-        "STAR_align":{
+        "STAR_Align":{
             "nthreads":4,
             "outdir": "/project2/nobrega/zach/RNA_Seq_Pipeline/test/data/",
             "outSAMtype": "BAM SortedByCoordinate",
@@ -28,6 +28,15 @@
             "cluster_ntasks_per_node":4,
             "cluster_cpus_per_task":6,
             "cluster_mem_per_cpu":2000
+        },
+        "Picard_MarkDups":{
+            "outdir": "/project2/nobrega/zach/RNA_Seq_Pipeline/test/data/
+            "extra_args":"",
+            "cluster_time":"01:00:00",
+            "cluster_nodes":1,
+            "cluster_ntasks_per_node":4,
+            "cluster_cpus_per_task":4,
+            "cluster_mem_per_cpu":1000
         }
     }
 }

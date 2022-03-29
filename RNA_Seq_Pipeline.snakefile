@@ -12,7 +12,8 @@ import src.utils as utils
 # configfile: is not hardcoded and must be supplied through the CLI
 analysis_id = config["analysis_id"]
 STAR_CGI_configs = utils.extract_rule_params("STAR_CGI", config)
-STAR_Align_configs = utils.extract_rule_params("STAR_align",config)
+STAR_Align_configs = utils.extract_rule_params("STAR_Align",config)
+Picard_MarkDups_configs = utils.extract_rule_params("Picard_MarkDups",config)
 
 # sample metadata processing
 sample_metadata = pd.read_csv(config["sample_metadata"], sep='\s+')
@@ -90,5 +91,38 @@ rule STAR_Align_Reads:
         " --outSAMunmapped {params.output_SAM_unmapped}"
         " --outSAMattributes {params.output_SAM_attributes}"
         " {params.extra_args}"
+
+# Mark Duplicates using Picard tools
+rule Picard_MarkDups:
+    input:
+        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
+    output:
+        alignment_dupsmarked = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.sorted.bam",
+        markdups_metrics = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.metrics.txt"
+    params:
+        extra_args = Picard_MarkDups_configs["extra_args"]
+    resources:
+        time = Picard_MarkDups_configs["cluster_time"],
+        nodes = Picard_MarkDups_configs["cluster_nodes"],
+        ntasks_per_node = Picard_MarkDups_configs["cluster_ntasks_per_node"],
+        cpus_per_task = Picard_MarkDups_configs["cluster_cpus_per_task"],
+        mem_per_cpu = Picard_MarkDups_configs["cluster_mem_per_cpu"],
+        logdir = "logs/",
+        job_id = lambda wildcards: wildcards.sample_id
+    shell:
+        "gatk MarkDuplicates"
+        " -I={input.alignment}"
+        " -O={output.alignment_dupsmarked}"
+        " -M={output.markdups_metrics}"
+        " -AS=true"
+        " {params.extra_args}"
+
+# Filter Alignments by bitwise flags if specified 
+if run_filter_alignments:
+    rule Samtools_Filter_Alignments:
+        input:
+            pass
+
+
 
 
