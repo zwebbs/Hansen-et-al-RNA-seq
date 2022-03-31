@@ -23,8 +23,7 @@ sample_ids = sample_metadata["sample"].tolist()
 # workflow
 rule all:
     input:
-        directory(STAR_CGI_configs["STAR_indices_path"]),
-        expand(STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam", sample_id=sample_ids)
+        pass
 
 
 # Create Genome Index using STAR if not already created
@@ -39,11 +38,10 @@ if STAR_CGI_configs["premade_index_path"] is None:
             transcript_gtf_path = STAR_CGI_configs["transcript_gtf"],
             junction_overhang_limit = STAR_CGI_configs["sjdbOverhang"]
         resources:
-            time = STAR_CGI_configs["cluster_time"],
-            nodes = STAR_CGI_configs["cluster_nodes"],  
-            ntasks_per_node = STAR_CGI_configs["cluster_ntasks_per_node"],
-            cpus_per_task = STAR_CGI_configs["cluster_cpus_per_task"],
-            mem_per_cpu = STAR_CGI_configs["cluster_mem_per_cpu"],
+            walltime = STAR_CGI_configs["walltime"],
+            nodes = STAR_CGI_configs["nodes"],  
+            processors_per_node = STAR_CGI_configs["processors_per_node"],
+            memory = STAR_CGI_configs["memory"]
             logdir = "logs/",
             job_id = ""
         shell:
@@ -56,73 +54,73 @@ if STAR_CGI_configs["premade_index_path"] is None:
             " --sjdbOverhang {params.junction_overhang_limit}"
 
 
-# Alignment using STAR
-rule STAR_Align_Reads:
-    input:
-        genome_index_dir = STAR_CGI_configs["STAR_indices_path"],
-    params:
-        sample_id = (lambda wildcards: wildcards.sample_id),
-        sample_fastq_gz = (lambda wildcards: utils.get_fastq_gz(wildcards.sample_id,sample_metadata)),
-        nthreads = STAR_Align_configs["nthreads"],
-        outdir_fprefix = STAR_Align_configs["outdir"],
-        output_SAM_type = STAR_Align_configs["outSAMtype"],
-        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
-        output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
-        extra_args = STAR_Align_configs["extra_args"]
-    output:
-        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
-    resources:
-        time = STAR_Align_configs["cluster_time"],
-        nodes = STAR_Align_configs["cluster_nodes"],         
-        ntasks_per_node = STAR_Align_configs["cluster_ntasks_per_node"],
-        cpus_per_task = STAR_Align_configs["cluster_cpus_per_task"],  
-        mem_per_cpu = STAR_Align_configs["cluster_mem_per_cpu"],
-        logdir = "logs/",
-        job_id = lambda wildcards: wildcards.sample_id
-    shell:
-        "STAR --runThreadN {params.nthreads}"
-        " --runMode alignReads"
-        " --quantMode GeneCounts"
-        " --genomeDir {input.genome_index_dir}/"
-        " --readFilesIn {params.sample_fastq_gz}"
-        " --readFilesCommand gunzip -c"
-        " --outFileNamePrefix {params.outdir_fprefix}/{params.sample_id}."
-        " --outSAMtype {params.output_SAM_type}"
-        " --outSAMunmapped {params.output_SAM_unmapped}"
-        " --outSAMattributes {params.output_SAM_attributes}"
-        " {params.extra_args}"
+#Alignment using STAR
+#rule STAR_Align_Reads:
+#    input:
+#        genome_index_dir = STAR_CGI_configs["STAR_indices_path"],
+#    params:
+#        sample_id = (lambda wildcards: wildcards.sample_id),
+#        sample_fastq_gz = (lambda wildcards: utils.get_fastq_gz(wildcards.sample_id,sample_metadata)),
+#        nthreads = STAR_Align_configs["nthreads"],
+#        outdir_fprefix = STAR_Align_configs["outdir"],
+#        output_SAM_type = STAR_Align_configs["outSAMtype"],
+#        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
+#        output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
+#        extra_args = STAR_Align_configs["extra_args"]
+#    output:
+#        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
+#    resources:
+#        time = STAR_Align_configs["cluster_time"],
+#        nodes = STAR_Align_configs["cluster_nodes"],         
+#        ntasks_per_node = STAR_Align_configs["cluster_ntasks_per_node"],
+#        cpus_per_task = STAR_Align_configs["cluster_cpus_per_task"],  
+#        mem_per_cpu = STAR_Align_configs["cluster_mem_per_cpu"],
+#        logdir = "logs/",
+#        job_id = lambda wildcards: wildcards.sample_id
+#    shell:
+#        "STAR --runThreadN {params.nthreads}"
+#        " --runMode alignReads"
+#        " --quantMode GeneCounts"
+#        " --genomeDir {input.genome_index_dir}/"
+#        " --readFilesIn {params.sample_fastq_gz}"
+#        " --readFilesCommand gunzip -c"
+#        " --outFileNamePrefix {params.outdir_fprefix}/{params.sample_id}."
+#        " --outSAMtype {params.output_SAM_type}"
+#        " --outSAMunmapped {params.output_SAM_unmapped}"
+#        " --outSAMattributes {params.output_SAM_attributes}"
+#        " {params.extra_args}"
+#
+##Mark Duplicates using Picard tools
+#rule Picard_MarkDups:
+#    input:
+#        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
+#    output:
+#        alignment_dupsmarked = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.sorted.bam",
+#        markdups_metrics = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.metrics.txt"
+#    params:
+#        extra_args = Picard_MarkDups_configs["extra_args"]
+#    resources:
+#        time = Picard_MarkDups_configs["cluster_time"],
+#        nodes = Picard_MarkDups_configs["cluster_nodes"],
+#        ntasks_per_node = Picard_MarkDups_configs["cluster_ntasks_per_node"],
+#        cpus_per_task = Picard_MarkDups_configs["cluster_cpus_per_task"],
+#        mem_per_cpu = Picard_MarkDups_configs["cluster_mem_per_cpu"],
+#        logdir = "logs/",
+#        job_id = lambda wildcards: wildcards.sample_id
+#    shell:
+#        "gatk MarkDuplicates"
+#        " -I={input.alignment}"
+#        " -O={output.alignment_dupsmarked}"
+#        " -M={output.markdups_metrics}"
+#        " -AS=true"
+#        " {params.extra_args}"
 
-# Mark Duplicates using Picard tools
-rule Picard_MarkDups:
-    input:
-        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
-    output:
-        alignment_dupsmarked = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.sorted.bam",
-        markdups_metrics = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.metrics.txt"
-    params:
-        extra_args = Picard_MarkDups_configs["extra_args"]
-    resources:
-        time = Picard_MarkDups_configs["cluster_time"],
-        nodes = Picard_MarkDups_configs["cluster_nodes"],
-        ntasks_per_node = Picard_MarkDups_configs["cluster_ntasks_per_node"],
-        cpus_per_task = Picard_MarkDups_configs["cluster_cpus_per_task"],
-        mem_per_cpu = Picard_MarkDups_configs["cluster_mem_per_cpu"],
-        logdir = "logs/",
-        job_id = lambda wildcards: wildcards.sample_id
-    shell:
-        "gatk MarkDuplicates"
-        " -I={input.alignment}"
-        " -O={output.alignment_dupsmarked}"
-        " -M={output.markdups_metrics}"
-        " -AS=true"
-        " {params.extra_args}"
-
-# Filter Alignments by bitwise flags if specified 
-if run_filter_alignments:
-    rule Samtools_Filter_Alignments:
-        input:
-            pass
-
+#Filter Alignments by bitwise flags if specified 
+#if run_filter_alignments:
+#    rule Samtools_Filter_Alignments:
+#        input:
+#            pass
+#
 
 
 
