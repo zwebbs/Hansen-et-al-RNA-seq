@@ -26,6 +26,14 @@
             "processors_per_node": null,
             "total_memory": null
         },
+        "Samtools_Merge":{
+            "do_merge":null,
+            "extra_args":"",
+            "walltime":"",
+            "nodes":null,
+            "processors_per_node":null,
+            "total_memory":null
+        },
         "Picard_MarkDups":{
             "outdir": ""
             "extra_args": "",

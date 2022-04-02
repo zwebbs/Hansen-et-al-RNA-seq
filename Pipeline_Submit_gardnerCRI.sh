@@ -42,9 +42,10 @@ snakemake --snakefile RNA_Seq_Pipeline.snakefile \
     -j 24 -kp --rerun-incomplete --configfile ${config_file} \
     --cluster "squb -l walltime={resources.walltime} \
      -l nodes={resources.nodes}:ppn={resources.processors_per_node} \
-     -l mem={resources.memory}mb \
+     -l mem={resources.total_memory}mb \
      -N {rulename}_{resources.job_id} \
      -S /bin/bash \
      -e {resources.logdir}{rulename}_{resources.job_id}.err \
-     -o {resources.logdir}{rulename}_{resources.job_id}.out \
-     ${dry_run_flag}"
+     -o {resources.logdir}{rulename}_{resources.job_id}.out" \
+     ${dry_run_flag} \
+     $*
