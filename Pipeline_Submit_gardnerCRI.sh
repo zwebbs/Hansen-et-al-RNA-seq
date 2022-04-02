@@ -35,7 +35,11 @@ done
 
 # load required modules
 module load gcc/6.2.0
+module load python/3.7.6
 module load STAR/2.6.1d
+module load intel/2017
+module load samtools/1.10
+module load htslib/1.10.2
 
 # run the snakemake workflow
 snakemake --snakefile RNA_Seq_Pipeline.snakefile \
