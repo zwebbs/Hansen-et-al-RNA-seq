@@ -51,5 +51,4 @@ snakemake --snakefile RNA_Seq_Pipeline.snakefile \
      -S /bin/bash \
      -e {resources.logdir}{rulename}_{resources.job_id}.err \
      -o {resources.logdir}{rulename}_{resources.job_id}.out" \
-     ${dry_run_flag} \
-     $*
+     ${dry_run_flag}
