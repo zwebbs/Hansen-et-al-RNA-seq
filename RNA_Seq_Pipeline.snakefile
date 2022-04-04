@@ -51,7 +51,7 @@ if STAR_CGI_configs["premade_index_path"] is None:
             " --sjdbGTFfile {params.transcript_gtf_path}"
             " --sjdbOverhang {params.junction_overhang_limit}"
 
-
+#TODO add handling for premade index paths
 #Alignment using STAR
 rule STAR_Align_Reads:
     input:
