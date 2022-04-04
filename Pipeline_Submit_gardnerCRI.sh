@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N snakemake_RNA_Seq_Pipeline
 #PBS -S /bin/bash
-#PBS -l walltime=00:30:00
+#PBS -l walltime=08:00:00
 #PBS -l nodes=1:ppn=1
 #PBS -l mem=2gb
 #PBS -o snakemake_RNA_Seq_Pipeline.out
@@ -13,7 +13,8 @@
 # Purpose: runs the RNA-seq pipeline for given samples on CRI Gardner HPC
 
 # check passed commandline arguments
-## of which there are two. 
+## of which there are three.
+###   -w <working directory for the analysis> [required]
 ###   -c <analysis configuration file .json> [required]
 ###   -d (BOOLEAN flag to complete a snakemake dry run) [optional]
 
@@ -41,8 +42,6 @@ cd ${work_dir} # change to desired work directory
 echo "selected work dir: ${work_dir}"
 echo "selected config file: ${config_file}"
 echo "dry run ?: ${dry_run_flag}"
-echo 'current working directory: '`pwd`
-
 
 # load required modules
 module load gcc/6.2.0

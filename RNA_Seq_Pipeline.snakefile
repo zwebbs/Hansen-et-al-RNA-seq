@@ -19,9 +19,10 @@ Picard_MarkDups_configs = utils.extract_rule_params("Picard_MarkDups", config)
 # sample metadata processing
 sample_metadata = pd.read_csv(config["sample_metadata"], sep=' ')
 sample_ids = sample_metadata["sample"].tolist()
-print(sample_metadata, sample_metadata.shape)
 
 # workflow
+#----------------
+
 
 # Create Genome Index using STAR if not already created
 if STAR_CGI_configs["premade_index_path"] is None:
@@ -85,6 +86,7 @@ rule STAR_Align_Reads:
         " --outSAMunmapped {params.output_SAM_unmapped}"
         " --outSAMattributes {params.output_SAM_attributes}"
         " {params.extra_args}"
+
 
 
 if Samtools_Merge_configs["do_merge"]:
