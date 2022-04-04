@@ -17,15 +17,11 @@ Samtools_Merge_configs = utils.extract_rule_params("Samtools_Merge", config)
 Picard_MarkDups_configs = utils.extract_rule_params("Picard_MarkDups", config)
 
 # sample metadata processing
-sample_metadata = pd.read_csv(config["sample_metadata"], sep='\s+')
+sample_metadata = pd.read_csv(config["sample_metadata"], sep=' ')
 sample_ids = sample_metadata["sample"].tolist()
-
+print(sample_metadata, sample_metadata.shape)
 
 # workflow
-rule all:
-    input:
-        "tomerge.txt"
-
 
 # Create Genome Index using STAR if not already created
 if STAR_CGI_configs["premade_index_path"] is None:
@@ -42,7 +38,7 @@ if STAR_CGI_configs["premade_index_path"] is None:
             walltime = STAR_CGI_configs["walltime"],
             nodes = STAR_CGI_configs["nodes"],  
             processors_per_node = STAR_CGI_configs["processors_per_node"],
-            total_memory = STAR_CGI_configs["total_memory"]
+            total_memory = STAR_CGI_configs["total_memory"],
             logdir = "logs/",
             job_id = ""
         shell:
@@ -90,10 +86,11 @@ rule STAR_Align_Reads:
         " --outSAMattributes {params.output_SAM_attributes}"
         " {params.extra_args}"
 
+
 if Samtools_Merge_configs["do_merge"]:
     rule Samtools_Merge:
         input:
-            alignments = rules.STAR_Align_Reads.output.alignment
+            alignments = expand(rules.STAR_Align_Reads.output.alignment, sample_id=sample_ids)
         resources:
             walltime = Samtools_Merge_configs["walltime"],
             nodes = Samtools_Merge_configs["nodes"],         
@@ -101,8 +98,6 @@ if Samtools_Merge_configs["do_merge"]:
             total_memory = Samtools_Merge_configs["total_memory"],  
             logdir = "logs/",
             job_id = (lambda wildcards: wildcards.sample_id)
-        output:
-            "tomerge.txt"
         shell:
             "echo {input.alignments} > tomerge.txt"
 

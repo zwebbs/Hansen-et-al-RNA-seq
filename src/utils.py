@@ -4,8 +4,10 @@
 # Purpose: Provides auxillary methods for readability and
 # portability of snakemake workflow configurations
 
-from .exceptions import UserError
+from src.exceptions import UserError
+from collections import OrderedDict
 import pandas as pd
+
 
 # method definitions
 
@@ -13,13 +15,13 @@ def extract_rule_params(rule_id, config_dict):
     # check that a valid parameters dictionary exists
     # and return it from original config dict
     rule_params = config_dict["rule_params"]
-    if type(rule_params[rule_id]) is dict:
+    if type(rule_params[rule_id]) in [dict, OrderedDict]:
         return rule_params[rule_id]
     else:
         err_msg = "Error. rule params could not be extracted "
         rule_msg = f"passed rule_id: ['{rule_id}'] "
         config_msg = f"check config dict: {config_dict}"
-        raise exceptions.UserError(message=err_msg+rule_msg+config_msg)
+        raise UserError(message=err_msg+rule_msg+config_msg)
 
 
 def get_fastq_gz(sample_id, sample_metadata):
