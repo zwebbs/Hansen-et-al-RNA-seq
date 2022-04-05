@@ -50,7 +50,7 @@ module load python/3.7.6
 # run the snakemake workflow
 snakemake --snakefile RNA_Seq_Pipeline.snakefile \
     -j 24 -kp --rerun-incomplete --configfile ${config_file} \
-    --cluster "squb -V -l walltime={resources.walltime} \
+    --cluster "qsub -V -l walltime={resources.walltime} \
      -l nodes={resources.nodes}:ppn={resources.processors_per_node} \
      -l mem={resources.total_memory}mb \
      -N {rulename}_{resources.job_id} \
