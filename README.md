@@ -7,7 +7,9 @@
     -c <analysis configuration file .json> [required]
     -d (BOOLEAN flag to complete a snakemake dry run) [optional]
 ```
-##Running the Pipeline on Gardner HPC Cluster. 
+
+## Running the Pipeline on Gardner HPC Cluster. 
+
 Because we are unable to access the `qsub` utility on the compute nodes, I recommend running the snakemake manager process from your project directory on the head (login) node. This should require almost none of the head node's resources to manage, and should not run afoul of the CRI staff's preferences. Currently this is the only way I can think of to properly utilize the snakemake workflow management process on Gardner. 
 
 ```bash
