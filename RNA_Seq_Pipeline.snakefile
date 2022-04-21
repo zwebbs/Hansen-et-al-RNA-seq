@@ -4,104 +4,162 @@
 # Purpose: Manages the workflow for RNA-seq alignment and quantification for
 # both single-end and paired-end sequencing
 
+
 # library + module imports
+# ----------------------------------------------------------------------------
 import pandas as pd
-import src.utils as utils
+from gardnersnake import ConfigurationHelper
+from gardnersnake.misc import read_manifest_txt
 
-# configuration and setup
-# configfile: is not hardcoded and must be supplied through the CLI
-analysis_id = config["analysis_id"]
-STAR_CGI_configs = utils.extract_rule_params("STAR_CGI", config)
-STAR_Align_configs = utils.extract_rule_params("STAR_Align", config)
-Samtools_Merge_configs = utils.extract_rule_params("Samtools_Merge", config)
-Picard_MarkDups_configs = utils.extract_rule_params("Picard_MarkDups", config)
+# workflow setup
+# ----------------------------------------------------------------------------
 
-# sample metadata processing
-sample_metadata = pd.read_csv(config["sample_metadata"], sep=' ')
-sample_ids = sample_metadata["sample"].tolist()
+# build ConfigurationHelper and set the work dir
+CH = ConfigurationHelper(cfg_dict=config)
+analysis_id = CH.get_global_param("analysis_id")
+workdir: CH.get_global_param(
+            "workdir", ispath=True, 
+            pathtype="dir", exists=True
+         )
+
 
 # workflow
 #----------------
 
+# Rule 0: Definig global outputs
+# ----------------------------------------------------------------------------
+rule all:
+    input:
+        star_cgi_rc = "star_create_genome_index.rc.out"
 
-# Create Genome Index using STAR if not already created
-if STAR_CGI_configs["premade_index_path"] is None:
-    print("Generating Index for STAR...")
-    rule STAR_Create_Genome_Indices:
+# check if genome index is already created
+schematic 
+if genome_index exists:
+    check contents:
+        if malformed --error
+        else: return rc
+else:
+    create genome index
+    check contents
+        if malformed --error
+        else: return rc
+
+
+# Rule 1: Verify Genome Index or Create a new one.
+# ----------------------------------------------------------------------------
+
+# Collect info about where index should be located and what should be inside 
+genome_index_path = CH.get_rule_param("STAR_CGI", "STAR_indices_path",
+                        ispath=True, pathtype="dir", returnPath=True)
+genome_index_manifest = read_manifest_txt(
+                            CH.get_rule_param(rule="STAR_CGI",
+                                param="index_manifest_file",
+                                ispath=True, pathtype="file",
+                                exists=True, returnPath=False
+                            )
+                        )
+
+# check if the index already exists and verify its contents
+if genome_index_path.exists():
+    rule Verify_Index_Contents:
+        input: index_dir = str(genome_index_path)
+        params: manifest = genome_index_manifest
+        output: star_cgi_rc = "star_create_genome_index.rc.out"
+        resources: **CH.get_rule_resources("Verify_Index_Contents")
+        shell:
+            "check_directory --strict"
+            " -o {output.star_cgi_rc}"
+            " {params.manifest} {input.index_dir}"
+
+# create the index if it doesn't already exist. verify contents afterwards
+else:
+    rule STAR_Create_Genome_Index:
+        params:            
+            nthreads = CH.get_rule_param(rule="STAR_CGI", param="nthreads"),
+            sjOverhang = CH.get_rule_param(rule="STAR_CGI",param="sjdbOverhang"),
+            manifest = genome_index_manifest,
+            transcript_gtf_path = CH.get_rule_param(rule="STAR_CGI",
+                                    param="transcript_gtf",
+                                    ispath=True, pathtype="file",
+                                    exists=True, returnPath=False
+                                  ),
+            fasta_path = CH.get_rule_param(rule="STAR_CGI",param="ref_fasta",
+                            ispath=True, pathtype="file",
+                            exists=True, returnPath=False
+                         )
+        resources: **CH.get_rule_resources("STAR_CGI") 
         output:
-            genome_index_dir = directory(STAR_CGI_configs["STAR_indices_path"])
-        params:
-            nthreads = STAR_CGI_configs["nthreads"],
-            fasta_path = STAR_CGI_configs["ref_fasta"],
-            transcript_gtf_path = STAR_CGI_configs["transcript_gtf"],
-            junction_overhang_limit = STAR_CGI_configs["sjdbOverhang"]
-        resources:
-            walltime = STAR_CGI_configs["walltime"],
-            nodes = STAR_CGI_configs["nodes"],  
-            processors_per_node = STAR_CGI_configs["processors_per_node"],
-            total_memory = STAR_CGI_configs["total_memory"],
-            logdir = "logs/",
-            job_id = ""
+            genome_index_path = directory(genome_index_path),
+            star_cgi_rc = "star_create_genome_index.rc.out"
         shell:
             "mkdir {output.genome_index_dir} && "
             "STAR --runThreadN {params.nthreads}"
             " --runMode genomeGenerate"
-            " --genomeDir {output.genome_index_dir}"
+            " --genomeDir {output.genome_index_path}"
             " --genomeFastaFiles {params.fasta_path}"
             " --sjdbGTFfile {params.transcript_gtf_path}"
             " --sjdbOverhang {params.junction_overhang_limit}"
+            " && check_directory --strict"
+            " -o {output.star_cgi_rc}"
+            " {params.manifest}"
+            " {output.genome_index_path}"
+
+
+# Rule 2: Aligning RNA-Seq reads using STAR
+#-----------------------------------------------------------------------------
+
 
 #TODO add handling for premade index paths
 #Alignment using STAR
-rule STAR_Align_Reads:
-    input:
-        genome_index = rules.STAR_Create_Genome_Indices.output.genome_index_dir,
-    params:
-        sample_id = (lambda wildcards: wildcards.sample_id),
-        sample_fastq_gz = (lambda wildcards: utils.get_fastq_gz(wildcards.sample_id,sample_metadata)),
-        nthreads = STAR_Align_configs["nthreads"],
-        outdir_fprefix = STAR_Align_configs["outdir"],
-        output_SAM_type = STAR_Align_configs["outSAMtype"],
-        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
-        output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
-        extra_args = STAR_Align_configs["extra_args"]
-    output:
-        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
-    resources:
-        walltime = STAR_Align_configs["walltime"],
-        nodes = STAR_Align_configs["nodes"],         
-        processors_per_node = STAR_Align_configs["processors_per_node"],
-        total_memory = STAR_Align_configs["total_memory"],  
-        logdir = "logs/",
-        job_id = (lambda wildcards: wildcards.sample_id)
-    shell:
-        "STAR --runThreadN {params.nthreads}"
-        " --runMode alignReads"
-        " --quantMode GeneCounts"
-        " --genomeDir {input.genome_index_dir}/"
-        " --readFilesIn {params.sample_fastq_gz}"
-        " --readFilesCommand gunzip -c"
-        " --outFileNamePrefix {params.outdir_fprefix}/{params.sample_id}."
-        " --outSAMtype {params.output_SAM_type}"
-        " --outSAMunmapped {params.output_SAM_unmapped}"
-        " --outSAMattributes {params.output_SAM_attributes}"
-        " {params.extra_args}"
+#rule STAR_Align_Reads:
+#    input:
+#        genome_index = rules.STAR_Create_Genome_Indices.output.genome_index_dir,
+#    params:
+#        sample_id = (lambda wildcards: wildcards.sample_id),
+#        sample_fastq_gz = (lambda wildcards: utils.get_fastq_gz(wildcards.sample_id,sample_metadata)),
+#        nthreads = STAR_Align_configs["nthreads"],
+#        outdir_fprefix = STAR_Align_configs["outdir"],
+#        output_SAM_type = STAR_Align_configs["outSAMtype"],
+#        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
+#        output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
+#        extra_args = STAR_Align_configs["extra_args"]
+#    output:
+#        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
+#    resources:
+#        walltime = STAR_Align_configs["walltime"],
+#        nodes = STAR_Align_configs["nodes"],         
+#        processors_per_node = STAR_Align_configs["processors_per_node"],
+#        total_memory = STAR_Align_configs["total_memory"],  
+#        logdir = "logs/",
+#        job_id = (lambda wildcards: wildcards.sample_id)
+#    shell:
+#        "STAR --runThreadN {params.nthreads}"
+#        " --runMode alignReads"
+#        " --quantMode GeneCounts"
+#        " --genomeDir {input.genome_index_dir}/"
+#        " --readFilesIn {params.sample_fastq_gz}"
+#        " --readFilesCommand gunzip -c"
+#        " --outFileNamePrefix {params.outdir_fprefix}/{params.sample_id}."
+#        " --outSAMtype {params.output_SAM_type}"
+#        " --outSAMunmapped {params.output_SAM_unmapped}"
+#        " --outSAMattributes {params.output_SAM_attributes}"
+#        " {params.extra_args}"
 
 
 
-if Samtools_Merge_configs["do_merge"]:
-    rule Samtools_Merge:
-        input:
-            alignments = expand(rules.STAR_Align_Reads.output.alignment, sample_id=sample_ids)
-        resources:
-            walltime = Samtools_Merge_configs["walltime"],
-            nodes = Samtools_Merge_configs["nodes"],         
-            processors_per_node = Samtools_Merge_configs["processors_per_node"],
-            total_memory = Samtools_Merge_configs["total_memory"],  
-            logdir = "logs/",
-            job_id = (lambda wildcards: wildcards.sample_id)
-        shell:
-            "echo {input.alignments} > tomerge.txt"
+#if Samtools_Merge_configs["do_merge"]:
+#    rule Samtools_Merge:
+#        input:
+#            alignments = expand(rules.STAR_Align_Reads.output.alignment, sample_id=sample_ids)
+#        resources:
+#            walltime = Samtools_Merge_configs["walltime"],
+#            nodes = Samtools_Merge_configs["nodes"],         
+#            processors_per_node = Samtools_Merge_configs["processors_per_node"],
+#            total_memory = Samtools_Merge_configs["total_memory"],  
+#            logdir = "logs/",
+#            job_id = (lambda wildcards: wildcards.sample_id)
+#        shell:
+#            "echo {input.alignments} > tomerge.txt"
 
 
 ##Mark Duplicates using Picard tools

@@ -2,13 +2,19 @@
     "analysis_id":"",
     "sample_metadata":"",
     "rule_params":{
+        "Verify_Index_Contents": {
+            "walltime": "",
+            "nodes": null,
+            "processors_per_node": null,
+            "total_memory": null
+        },
         "STAR_CGI":{
+            "index_manifest_file": null,
             "nthreads": null,
             "ref_fasta": "",
             "transcript_gtf": "",
             "sjdbOverhang": null,
             "STAR_indices_path": "",
-            "premade_index_path": null,
             "walltime": "",
             "nodes": null,  
             "processors_per_node": null,
