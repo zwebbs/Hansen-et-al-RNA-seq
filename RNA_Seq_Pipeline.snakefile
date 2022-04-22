@@ -17,10 +17,7 @@ from gardnersnake.misc import read_manifest_txt
 # build ConfigurationHelper and set the work dir
 CH = ConfigurationHelper(cfg_dict=config)
 analysis_id = CH.get_global_param("analysis_id")
-workdir: CH.get_global_param(
-            "workdir", ispath=True, 
-            pathtype="dir", exists=True
-         )
+workdir: CH.get_global_param("workdir", ispath=True, pathtype="dir", exists=True)
 
 
 # workflow
@@ -31,18 +28,6 @@ workdir: CH.get_global_param(
 rule all:
     input:
         star_cgi_rc = "star_create_genome_index.rc.out"
-
-# check if genome index is already created
-schematic 
-if genome_index exists:
-    check contents:
-        if malformed --error
-        else: return rc
-else:
-    create genome index
-    check contents
-        if malformed --error
-        else: return rc
 
 
 # Rule 1: Verify Genome Index or Create a new one.
@@ -76,7 +61,7 @@ else:
     rule STAR_Create_Genome_Index:
         params:            
             nthreads = CH.get_rule_param(rule="STAR_CGI", param="nthreads"),
-            sjOverhang = CH.get_rule_param(rule="STAR_CGI",param="sjdbOverhang"),
+            sjdbOverhang = CH.get_rule_param(rule="STAR_CGI",param="sjdbOverhang"),
             manifest = genome_index_manifest,
             transcript_gtf_path = CH.get_rule_param(rule="STAR_CGI",
                                     param="transcript_gtf",
@@ -89,16 +74,16 @@ else:
                          )
         resources: **CH.get_rule_resources("STAR_CGI") 
         output:
-            genome_index_path = directory(genome_index_path),
+            genome_index_path = directory(str(genome_index_path)),
             star_cgi_rc = "star_create_genome_index.rc.out"
         shell:
-            "mkdir {output.genome_index_dir} && "
+            "mkdir -p {output.genome_index_path} && "
             "STAR --runThreadN {params.nthreads}"
             " --runMode genomeGenerate"
             " --genomeDir {output.genome_index_path}"
             " --genomeFastaFiles {params.fasta_path}"
             " --sjdbGTFfile {params.transcript_gtf_path}"
-            " --sjdbOverhang {params.junction_overhang_limit}"
+            " --sjdbOverhang {params.sjdbOverhang}"
             " && check_directory --strict"
             " -o {output.star_cgi_rc}"
             " {params.manifest}"
