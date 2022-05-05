@@ -1,4 +1,4 @@
-# File Name: RNA_Seq_Pipeline.snakefile
+# File Name: Snakefile
 # Created By: ZW
 # Created On: 2022-02-17
 # Purpose: Manages the workflow for RNA-seq alignment and quantification for
@@ -7,17 +7,17 @@
 
 # library + module imports
 # ----------------------------------------------------------------------------
-import pandas as pd
-from gardnersnake import ConfigurationHelper
-from gardnersnake.misc import read_manifest_txt
+import gardnersnake as gs
+
 
 # workflow setup
 # ----------------------------------------------------------------------------
+cfg, meta = gs.read_yaml_extended_config(config['extended_config'])
+CH = gs.ConfigurationHelper(cfg, schema="CFG_GARDNER_BASIC")
+#TODO meta = gs.DataManager(meta, schema="META_RNASEQ_BASIC")
 
-# build ConfigurationHelper and set the work dir
-CH = ConfigurationHelper(cfg_dict=config)
-analysis_id = CH.get_global_param("analysis_id")
-workdir: CH.get_global_param("workdir", ispath=True, pathtype="dir", exists=True)
+analysis_id = CH.get_glob('analysis_id')
+workdir: CH.get_glob('workdir')
 
 
 # workflow
