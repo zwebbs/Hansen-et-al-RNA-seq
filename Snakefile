@@ -84,14 +84,19 @@ else: # create the index if it doesn't exist, verify contents afterwords
             " {params.genome_index_manifest}"
             " {params.genome_index_dir}"
 
+
 # Rule 2: Aligning RNA-Seq reads using STAR
 #-----------------------------------------------------------------------------
 
+# split alignment by sequencing runs
+rule STAR_Align_Reads:
+    input:
+        **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
 
-# TODO add handling for premade index paths
-#Alignment using STAR
-#rule STAR_Align_Reads:
-#    input:
+
+
+
+
 #        genome_index = rules.STAR_Create_Genome_Indices.output.genome_index_dir,
 #    params:
 #        sample_id = (lambda wildcards: wildcards.sample_id),
