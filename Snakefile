@@ -43,55 +43,52 @@ workdir: CH.get_glob('workdir')
 # Rule 0: Defining global outputs
 # ----------------------------------------------------------------------------
 
-
-
+rule all:
+    input:
+        **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
 
 
 # Rule 1: Verify Genome Index or Create a new one.
 # ----------------------------------------------------------------------------
 
 # check if the index already exists and verify its contents
-if not Path(DM.get_rule_data(rule_name="Verify_Index_Contents",
-        key_list=["inputs", "genome_index_dir"])).exists():
+genome_index_dir = CH.get_parameters("Verify_Index_Contents")["genome_index_dir"])
+if Path(genome_index_dir).exists():
     rule Verify_Index_Contents:
-        input: **DM.get_rule_data("Verify_Index_Contents", ["inputs"])
         params: **CH.get_parameters("Verify_Index_Contents")
         output: **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
         resources: **CH.get_resources("Verify_Index_Contents")
         shell:
             "check_directory --strict"
             " -o {output}"
-            " {params.manifest} {input}"
+            " {params.genome_index_manifest} {params.genome_index_dir}"
 
-# create the index if it doesn't already exist. verify contents afterwards
-# else:  # create the index if it doesn't exist, verify contents afterwords
-#     rule STAR_Create_Genome_Index:
-#         input: **DM.get_rule_data("Verify_Index_Contents", ["input"])
-#         params: **CH.get_parameters("Verify_Index_Contents")
-#         output: **DM.get_rule_data("Verify_Index_Contents", ["output"])
-#         resources: **CH.get_resources("Verify_Index_Contents")
-#
-#
-#
-#         shell:
-#             "mkdir -p {output.genome_index_path} && "
-#             "STAR --runThreadN {params.nthreads}"
-#             " --runMode genomeGenerate"
-#             " --genomeDir {output.genome_index_path}"
-#             " --genomeFastaFiles {params.fasta_path}"
-#             " --sjdbGTFfile {params.transcript_gtf_path}"
-#             " --sjdbOverhang {params.sjdbOverhang}"
-#             " && check_directory --strict"
-#             " -o {output.star_cgi_rc}"
-#             " {params.manifest}"
-#             " {output.genome_index_path}"
-
+else: # create the index if it doesn't exist, verify contents afterwords
+    rule STAR_Create_Genome_Index:
+        input: **DM.get_rule_data("STAR_Create_Genome_Index", ["inputs"])
+        params:
+            **CH.get_parameters("Verify_Index_Contents"),
+            **CH.get_parameters("STAR_Create_Genome_Index")
+        output: **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
+        resources: **CH.get_resources("STAR_Create_Genome_Index")
+        shell:
+            "mkdir -p {params.genome_index_dir} && "
+            "STAR --runThreadN {params.nthreads}"
+            " --runMode genomeGenerate"
+            " --genomeDir {params.genome_index_dir}"
+            " --genomeFastaFiles {input.genome_fasta_path}"   
+            " --sjdbGTFfile {input.transcript_gtf_path}"
+            " --sjdbOverhang {params.sjdbOverhang}"
+            " && check_directory --strict"
+            " -o {output}"
+            " {params.genome_index_manifest}"
+            " {params.genome_index_dir}"
 
 # Rule 2: Aligning RNA-Seq reads using STAR
 #-----------------------------------------------------------------------------
 
 
-#TODO add handling for premade index paths
+# TODO add handling for premade index paths
 #Alignment using STAR
 #rule STAR_Align_Reads:
 #    input:
@@ -145,36 +142,3 @@ if not Path(DM.get_rule_data(rule_name="Verify_Index_Contents",
 
 
 ##Mark Duplicates using Picard tools
-#rule Picard_MarkDups:
-#    input:
-#        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
-#    output:
-#        alignment_dupsmarked = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.sorted.bam",
-#        markdups_metrics = Picard_MarkDups_configs["outdir"] + "{sample_id}.MarkDups.metrics.txt"
-#    params:
-#        extra_args = Picard_MarkDups_configs["extra_args"]
-#    resources:
-#        time = Picard_MarkDups_configs["cluster_time"],
-#        nodes = Picard_MarkDups_configs["cluster_nodes"],
-#        ntasks_per_node = Picard_MarkDups_configs["cluster_ntasks_per_node"],
-#        cpus_per_task = Picard_MarkDups_configs["cluster_cpus_per_task"],
-#        mem_per_cpu = Picard_MarkDups_configs["cluster_mem_per_cpu"],
-#        logdir = "logs/",
-#        job_id = lambda wildcards: wildcards.sample_id
-#    shell:
-#        "gatk MarkDuplicates"
-#        " -I={input.alignment}"
-#        " -O={output.alignment_dupsmarked}"
-#        " -M={output.markdups_metrics}"
-#        " -AS=true"
-#        " {params.extra_args}"
-
-#Filter Alignments by bitwise flags if specified 
-#if run_filter_alignments:
-#    rule Samtools_Filter_Alignments:
-#        input:
-#            pass
-#
-
-
-

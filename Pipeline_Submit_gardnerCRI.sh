@@ -18,12 +18,9 @@
 ###   -c <analysis configuration file .json> [required]
 ###   -d (BOOLEAN flag to complete a snakemake dry run) [optional]
 
-while getopts ":w:c:d" 'opt';
+while getopts ":c:d" 'opt';
 do
     case ${opt} in
-        w)
-            work_dir="${OPTARG}"
-            ;; # capture the desired working directory and change to it.
         c) 
             config_file="${OPTARG}"
             ;; # capture command line argument for config file
@@ -37,19 +34,13 @@ do
     esac
 done
 
-# print the current working directory
-cd ${work_dir} # change to desired work directory
-echo "selected work dir: ${work_dir}"
+# print options
 echo "selected config file: ${config_file}"
 echo "dry run ?: ${dry_run_flag}"
 
-# load required modules
-module load gcc/6.2.0
-module load python/3.7.6
-
 # run the snakemake workflow
 snakemake --snakefile Snakefile \
-    -j 24 -kp --rerun-incomplete --config extended_config=${config_file} \
+    -j 24 -kp --rerun-incomplete --config cluster_id="GARDNER" extended_config=${config_file} \
     --cluster "qsub -V -l walltime={resources.walltime} \
      -l nodes={resources.nodes}:ppn={resources.processors_per_node} \
      -l mem={resources.total_memory}mb \
