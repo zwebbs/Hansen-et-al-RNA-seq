@@ -52,7 +52,7 @@ rule all:
 # ----------------------------------------------------------------------------
 
 # check if the index already exists and verify its contents
-genome_index_dir = CH.get_parameters("Verify_Index_Contents")["genome_index_dir"])
+genome_index_dir = CH.get_parameters("Verify_Index_Contents")["genome_index_dir"]
 if Path(genome_index_dir).exists():
     rule Verify_Index_Contents:
         params: **CH.get_parameters("Verify_Index_Contents")
