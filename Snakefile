@@ -8,14 +8,31 @@
 # library + module imports
 # ----------------------------------------------------------------------------
 import gardnersnake as gs
-
+from gardnersnake.misc.exceptions import UserError
+from pathlib import Path
 
 # workflow setup
 # ----------------------------------------------------------------------------
-cfg, meta = gs.read_yaml_extended_config(config['extended_config'])
-CH = gs.ConfigurationHelper(cfg, schema="CFG_GARDNER_BASIC")
-#TODO meta = gs.DataManager(meta, schema="META_RNASEQ_BASIC")
 
+# get appropriate configuration and metadata schemas according to which
+# cluster we're using.
+cluster_id = config["cluster_id"]
+if cluster_id == "GARDNER":
+    cfg_schema="CFG_GARDNER_BASIC"
+    data_schema="META_GARDNER_SEQ_BASIC"
+elif cluster_id == "MIDWAY2":
+    cfg_schema = None  # TODO: implement gs midway2 schema and replace
+    data_schema = None  # TODO: implement gs midway2 schema and replace
+else:
+    msg = f"Could not interpret cluster_id! - {cluster_id} not understood"
+    raise UserError(msg)
+
+# build configuration helper and metadata manager
+cfg, meta = gs.read_yaml_extended_config(config['extended_config'])
+CH = gs.ConfigurationHelper(cfg, schema_type=cfg_schema)
+DM = gs.DataManager(meta, schema_type=data_schema)
+
+# set analysis_id and working directory
 analysis_id = CH.get_glob('analysis_id')
 workdir: CH.get_glob('workdir')
 
@@ -23,71 +40,51 @@ workdir: CH.get_glob('workdir')
 # workflow
 #----------------
 
-# Rule 0: Definig global outputs
+# Rule 0: Defining global outputs
 # ----------------------------------------------------------------------------
-rule all:
-    input:
-        star_cgi_rc = "star_create_genome_index.rc.out"
+
+
+
 
 
 # Rule 1: Verify Genome Index or Create a new one.
 # ----------------------------------------------------------------------------
 
-# Collect info about where index should be located and what should be inside 
-genome_index_path = CH.get_rule_param("STAR_CGI", "STAR_indices_path",
-                        ispath=True, pathtype="dir", returnPath=True)
-genome_index_manifest = read_manifest_txt(
-                            CH.get_rule_param(rule="STAR_CGI",
-                                param="index_manifest_file",
-                                ispath=True, pathtype="file",
-                                exists=True, returnPath=False
-                            )
-                        )
-
 # check if the index already exists and verify its contents
-if genome_index_path.exists():
+if not Path(DM.get_rule_data(rule_name="Verify_Index_Contents",
+        key_list=["inputs", "genome_index_dir"])).exists():
     rule Verify_Index_Contents:
-        input: index_dir = str(genome_index_path)
-        params: manifest = genome_index_manifest
-        output: star_cgi_rc = "star_create_genome_index.rc.out"
-        resources: **CH.get_rule_resources("Verify_Index_Contents")
+        input: **DM.get_rule_data("Verify_Index_Contents", ["inputs"])
+        params: **CH.get_parameters("Verify_Index_Contents")
+        output: **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
+        resources: **CH.get_resources("Verify_Index_Contents")
         shell:
             "check_directory --strict"
-            " -o {output.star_cgi_rc}"
-            " {params.manifest} {input.index_dir}"
+            " -o {output}"
+            " {params.manifest} {input}"
 
 # create the index if it doesn't already exist. verify contents afterwards
-else:
-    rule STAR_Create_Genome_Index:
-        params:            
-            nthreads = CH.get_rule_param(rule="STAR_CGI", param="nthreads"),
-            sjdbOverhang = CH.get_rule_param(rule="STAR_CGI",param="sjdbOverhang"),
-            manifest = genome_index_manifest,
-            transcript_gtf_path = CH.get_rule_param(rule="STAR_CGI",
-                                    param="transcript_gtf",
-                                    ispath=True, pathtype="file",
-                                    exists=True, returnPath=False
-                                  ),
-            fasta_path = CH.get_rule_param(rule="STAR_CGI",param="ref_fasta",
-                            ispath=True, pathtype="file",
-                            exists=True, returnPath=False
-                         )
-        resources: **CH.get_rule_resources("STAR_CGI") 
-        output:
-            genome_index_path = directory(str(genome_index_path)),
-            star_cgi_rc = "star_create_genome_index.rc.out"
-        shell:
-            "mkdir -p {output.genome_index_path} && "
-            "STAR --runThreadN {params.nthreads}"
-            " --runMode genomeGenerate"
-            " --genomeDir {output.genome_index_path}"
-            " --genomeFastaFiles {params.fasta_path}"
-            " --sjdbGTFfile {params.transcript_gtf_path}"
-            " --sjdbOverhang {params.sjdbOverhang}"
-            " && check_directory --strict"
-            " -o {output.star_cgi_rc}"
-            " {params.manifest}"
-            " {output.genome_index_path}"
+# else:  # create the index if it doesn't exist, verify contents afterwords
+#     rule STAR_Create_Genome_Index:
+#         input: **DM.get_rule_data("Verify_Index_Contents", ["input"])
+#         params: **CH.get_parameters("Verify_Index_Contents")
+#         output: **DM.get_rule_data("Verify_Index_Contents", ["output"])
+#         resources: **CH.get_resources("Verify_Index_Contents")
+#
+#
+#
+#         shell:
+#             "mkdir -p {output.genome_index_path} && "
+#             "STAR --runThreadN {params.nthreads}"
+#             " --runMode genomeGenerate"
+#             " --genomeDir {output.genome_index_path}"
+#             " --genomeFastaFiles {params.fasta_path}"
+#             " --sjdbGTFfile {params.transcript_gtf_path}"
+#             " --sjdbOverhang {params.sjdbOverhang}"
+#             " && check_directory --strict"
+#             " -o {output.star_cgi_rc}"
+#             " {params.manifest}"
+#             " {output.genome_index_path}"
 
 
 # Rule 2: Aligning RNA-Seq reads using STAR
