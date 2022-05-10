@@ -5,10 +5,10 @@
 # Purpose: dummy gardner extended configuration for rnaseq workflow
 
 # first yaml doc contains schema for generic workflow configurations
-analysis_id: "test-gardner-rnaseq"
+analysis_id: "my-analysis"
 workdir: '.'
-rule_params:
-  - {
+rule_params: [
+  {
     rule_name: "Verify_Index_Contents",
     resources: {
       walltime: "00:10:00",
@@ -17,64 +17,87 @@ rule_params:
       total_memory: 2000,
       log_dir: "logs/",
       job_id: ''
+    }
+  },
+  {
+    rule_name: "STAR_Create_Genome_Index",
+    resources: {
+      walltime: "06:00:00",
+      nodes: 1,
+      processors_per_node: 6,
+      total_memory: 64000,
+      log_dir: "logs/",
+      job_id: ''
     },
     parameters: {
+      nthreads: 6,
+      sjdbOverhang: 49,
       genome_index_manifest: [
         "Genome", "chrLength.txt", "exonGeTrInfo.tab", "sjdbInfo.txt",
         "Log.out", "chrName.txt", "exonInfo.tab", "sjdbList.fromGTF.out.tab",
         "SA", "chrNameLength.txt", "geneInfo.tab", "sjdbList.out.tab",
         "SAindex", "chrStart.txt", "genomeParameters.txt", "transcriptInfo.tab"
-      ]
-    }
-  }
-
----
-# second yaml doc contains schema for metadata (sequencing files, etc.)
-shared_data:
-  libraries: [
-    {
-      library_name: "lib-1",
-      runs: [
-        {
-          run_name: "run-1-1",
-          fastq1: "run-1-1.fastq.gz",
-          fastq2: null
-        }
-      ]
-    },
-    {
-      library_name: "lib-2",
-      runs: [
-        {
-          run_name: "run-2-1",
-          fastq1: "run-2-1.fastq.gz",
-          fastq2: null
-        }
-      ]
-    },
-    {
-      library_name: "lib-3",
-      runs: [
-        {
-          run_name: "run-3-1",
-          fastq1: "run-3-1.fastq.gz",
-          fastq2: null
-        }
-      ]
-    }
-  ]
-rule_data: [
-  {
-    rule_name: "Verify_Index_Contents",
-    inputs: {
-      genome_index_dir: "/path/to/directory"
-    },
-    outputs: {
-      rc_out: "/path/to/verify_index_contents.rc.out"
+      ],
+      genome_index_dir: "/path/to/my/index/dir/",
+      extra_args: ''
     }
   },
   {
-    rule_name: "STAR_Create_Genome_Index"
+    rule_name: "STAR_Align_Reads",
+    resources: {
+      walltime: "02:00:00",
+      nodes: 1,
+      processors_per_node: 6,
+      total_memory: 32000,
+      log_dir: "logs/",
+      job_id: ''
+    },
+    parameters: {
+      nthreads: 4,
+      run_mode: "alignReads",
+      quant_mode: "GeneCounts",
+      read_files_command: "gunzip -c",
+      outdir_fprefix: "workingdir/mydata/align/",
+      output_SAM_type: "BAM SortedByCoordinate",
+      output_SAM_unmapped: "Within",
+      output_SAM_attributes: "Standard",
+      extra_args: ''
+    }
   }
 ]
 
+---
+# second yaml doc contains schema for metadata (sequencing files, etc.)
+shared_data: [
+  {
+    library_name: "lib-1",
+    run_name: "run-id1",
+    fastq1: "run-id1.fastq.gz",
+    fastq2: null
+  },
+  {
+    library_name: "lib-2",
+    run_name: "run-id2",
+    fastq1: "run-id2.fastq.gz",
+    fastq2: null
+  },
+  {
+    library_name: "lib-3",
+    run_name: "run-id3",
+    fastq1: "run-id3.fastq.gz",
+    fastq2: null
+  }
+]
+
+rule_data: [
+  {
+    rule_name: "STAR_Create_Genome_Index",
+    static_inputs: {
+      genome_fasta_path: "/path/to/my/genome/fasta.fa",
+      transcript_gtf_path: "/path/to/my/transcriptome/RefSeq.gtf"
+    },
+    static_outputs: {
+      rc_out: "verify_index_contents.rc.out"
+    }
+  }
+]

@@ -36,27 +36,34 @@ DM = gs.DataManager(meta, schema_type=data_schema)
 analysis_id = CH.get_glob('analysis_id')
 workdir: CH.get_glob('workdir')
 
+# Globals
+# --------------------------
+ALIGN_DIR = CH.get_parameters("STAR_Align_Reads")["outdir_fprefix"]
 
+print(DM.shared_data)
 # workflow
 #----------------
 
 # Rule 0: Defining global outputs
 # ----------------------------------------------------------------------------
 
-rule all:
+rule all: # static output unpacking should all go last
     input:
-        **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
+        expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=DM.get_shared_data({}, "run_name")),
+        DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
 
 
 # Rule 1: Verify Genome Index or Create a new one.
 # ----------------------------------------------------------------------------
 
 # check if the index already exists and verify its contents
-genome_index_dir = CH.get_parameters("Verify_Index_Contents")["genome_index_dir"]
+# use parameters and outputs of rule STAR_Create_Genome_Index because they
+# are identical
+genome_index_dir = CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
 if Path(genome_index_dir).exists():
     rule Verify_Index_Contents:
-        params: **CH.get_parameters("Verify_Index_Contents")
-        output: **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
+        params: **CH.get_parameters("STAR_Create_Genome_Index")
+        output: **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"])
         resources: **CH.get_resources("Verify_Index_Contents")
         shell:
             "check_directory --strict"
@@ -65,11 +72,9 @@ if Path(genome_index_dir).exists():
 
 else: # create the index if it doesn't exist, verify contents afterwords
     rule STAR_Create_Genome_Index:
-        input: **DM.get_rule_data("STAR_Create_Genome_Index", ["inputs"])
-        params:
-            **CH.get_parameters("Verify_Index_Contents"),
-            **CH.get_parameters("STAR_Create_Genome_Index")
-        output: **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
+        input: **DM.get_rule_data("STAR_Create_Genome_Index", ["static_inputs"])
+        params: **CH.get_parameters("STAR_Create_Genome_Index")
+        output: **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"])
         resources: **CH.get_resources("STAR_Create_Genome_Index")
         shell:
             "mkdir -p {params.genome_index_dir} && "
@@ -79,7 +84,8 @@ else: # create the index if it doesn't exist, verify contents afterwords
             " --genomeFastaFiles {input.genome_fasta_path}"   
             " --sjdbGTFfile {input.transcript_gtf_path}"
             " --sjdbOverhang {params.sjdbOverhang}"
-            " && check_directory --strict"
+            " {params.extra_args} &&"
+            " check_directory --strict"
             " -o {output}"
             " {params.genome_index_manifest}"
             " {params.genome_index_dir}"
@@ -91,38 +97,33 @@ else: # create the index if it doesn't exist, verify contents afterwords
 # split alignment by sequencing runs
 rule STAR_Align_Reads:
     input:
-        **DM.get_rule_data("Verify_Index_Contents", ["outputs"]),
-        fastqs=DM.get_from_shared_data(["libraries", "runs", "run_name"],"{run_name}",["fastq1","fastq2"])
-#    params:
-#        sample_id = (lambda wildcards: wildcards.sample_id),
-#        sample_fastq_gz = (lambda wildcards: utils.get_fastq_gz(wildcards.sample_id,sample_metadata)),
-#        nthreads = STAR_Align_configs["nthreads"],
-#        outdir_fprefix = STAR_Align_configs["outdir"],
-#        output_SAM_type = STAR_Align_configs["outSAMtype"],
-#        output_SAM_unmapped = STAR_Align_configs["outSAMunmapped"],
-#        output_SAM_attributes = STAR_Align_configs["outSAMattributes"],
-#        extra_args = STAR_Align_configs["extra_args"]
-#    output:
-#        alignment = STAR_Align_configs["outdir"] + "{sample_id}.Aligned.sortedByCoord.out.bam"
-#    resources:
-#        walltime = STAR_Align_configs["walltime"],
-#        nodes = STAR_Align_configs["nodes"],         
-#        processors_per_node = STAR_Align_configs["processors_per_node"],
-#        total_memory = STAR_Align_configs["total_memory"],  
-#        logdir = "logs/",
-#        job_id = (lambda wildcards: wildcards.sample_id)
-#    shell:
-#        "STAR --runThreadN {params.nthreads}"
-#        " --runMode alignReads"
-#        " --quantMode GeneCounts"
-#        " --genomeDir {input.genome_index_dir}/"
-#        " --readFilesIn {params.sample_fastq_gz}"
-#        " --readFilesCommand gunzip -c"
-#        " --outFileNamePrefix {params.outdir_fprefix}/{params.sample_id}."
-#        " --outSAMtype {params.output_SAM_type}"
-#        " --outSAMunmapped {params.output_SAM_unmapped}"
-#        " --outSAMattributes {params.output_SAM_attributes}"
-#        " {params.extra_args}"
+        fastq1 = lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq1"),
+        fastq2= lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq2"),
+        **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"]),
+
+
+    params:
+        **CH.get_parameters("STAR_Align_Reads"),
+        run_name = (lambda wildcards: wildcards.run_name),
+        genome_index_dir=CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
+    resources:
+        ** CH.get_resources("STAR_Align_Reads", return_job_id=False),
+        job_id = (lambda wildcards: wildcards.run_name)
+    output:
+        aligned = CH.get_parameters("STAR_Align_Reads")["outdir_fprefix"] + "{run_id}.Aligned.sortedByCoord.out.bam"
+
+    shell:
+        "STAR --runThreadN {params.nthreads}"
+        " --runMode {params.run_mode}"
+        " --quantMode {params.quant_mode}"
+        " --genomeDir {params.genome_index_dir}/"
+        " --readFilesIn {input.fastq1} {input.fastq2}"
+        " --readFilesCommand {params.read_files_command}"
+        " --outFileNamePrefix {params.outdir_fprefix}/{params.run_id}."
+        " --outSAMtype {params.output_SAM_type}"
+        " --outSAMunmapped {params.output_SAM_unmapped}"
+        " --outSAMattributes {params.output_SAM_attributes}"
+        " {params.extra_args}"
 
 
 
