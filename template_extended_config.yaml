@@ -5,8 +5,8 @@
 # Purpose: dummy gardner extended configuration for rnaseq workflow
 
 # first yaml doc contains schema for generic workflow configurations
-analysis_id: "my-analysis"
-workdir: '.'
+analysis_id: "my-RNA-Seq-workflow"
+workdir: '/my/working/dir/'
 rule_params: [
   {
     rule_name: "Verify_Index_Contents",
@@ -38,7 +38,7 @@ rule_params: [
         "SA", "chrNameLength.txt", "geneInfo.tab", "sjdbList.out.tab",
         "SAindex", "chrStart.txt", "genomeParameters.txt", "transcriptInfo.tab"
       ],
-      genome_index_dir: "/path/to/my/index/dir/",
+    genome_index_dir: "/path/to/my/genome/index/",
       extra_args: ''
     }
   },
@@ -57,7 +57,7 @@ rule_params: [
       run_mode: "alignReads",
       quant_mode: "GeneCounts",
       read_files_command: "gunzip -c",
-      outdir_fprefix: "workingdir/mydata/align/",
+      outdir_fprefix: "data/align/",
       output_SAM_type: "BAM SortedByCoordinate",
       output_SAM_unmapped: "Within",
       output_SAM_attributes: "Standard",
@@ -70,31 +70,31 @@ rule_params: [
 # second yaml doc contains schema for metadata (sequencing files, etc.)
 shared_data: [
   {
-    library_name: "lib-1",
-    run_name: "run-id1",
-    fastq1: "run-id1.fastq.gz",
+    library_name: "lib1",
+    run_name: "sample1",
+    fastq1: "/data/raw/lib1/sample1.fastq.gz",
     fastq2: null
   },
   {
-    library_name: "lib-2",
-    run_name: "run-id2",
-    fastq1: "run-id2.fastq.gz",
+    library_name: "lib2",
+    run_name: "sample2",
+    fastq1: "data/raw/lib2/sample2.fastq.gz",
     fastq2: null
   },
   {
-    library_name: "lib-3",
-    run_name: "run-id3",
-    fastq1: "run-id3.fastq.gz",
+    library_name: "lib3",
+    run_name: "sample3",
+    fastq1: "data/raw/lib3/sample3.fastq.gz",
     fastq2: null
-  }
+   }
 ]
 
 rule_data: [
   {
     rule_name: "STAR_Create_Genome_Index",
     static_inputs: {
-      genome_fasta_path: "/path/to/my/genome/fasta.fa",
-      transcript_gtf_path: "/path/to/my/transcriptome/RefSeq.gtf"
+      genome_fasta_path: "/path/to/current/genome.fa",
+      transcript_gtf_path: "/path/to/current/transcriptome/.gtf"
     },
     static_outputs: {
       rc_out: "verify_index_contents.rc.out"

@@ -47,10 +47,10 @@ print(DM.shared_data)
 # Rule 0: Defining global outputs
 # ----------------------------------------------------------------------------
 
-rule All: # static output unpacking should all go last
+rule all: # static output unpacking should all go last
     input:
         expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=DM.get_shared_data({}, "run_name")),
-        DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
+        **DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
 
 
 # Rule 1: Verify Genome Index or Create a new one.
@@ -67,7 +67,7 @@ if Path(genome_index_dir).exists():
         resources: **CH.get_resources("Verify_Index_Contents")
         shell:
             "check_directory --strict"
-            " -o {output}"
+            " -o {output.rc_out}"
             " {params.genome_index_manifest} {params.genome_index_dir}"
 
 else: # create the index if it doesn't exist, verify contents afterwords
@@ -86,7 +86,7 @@ else: # create the index if it doesn't exist, verify contents afterwords
             " --sjdbOverhang {params.sjdbOverhang}"
             " {params.extra_args} &&"
             " check_directory --strict"
-            " -o {output}"
+            " -o {output.rc_out}"
             " {params.genome_index_manifest}"
             " {params.genome_index_dir}"
 
@@ -94,22 +94,20 @@ else: # create the index if it doesn't exist, verify contents afterwords
 # Rule 2: Aligning RNA-Seq reads using STAR
 #-----------------------------------------------------------------------------
 
-# split alignment by sequencing runs
+# scatter individual runs and align
 rule STAR_Align_Reads:
     input:
         fastq1 = lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq1"),
-        fastq2= lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq2"),
+        fastq2 = lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq2"),
         **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"])
     params:
         **CH.get_parameters("STAR_Align_Reads"),
-        run_name = (lambda wildcards: wildcards.run_name),
+        run_id = (lambda wildcards: wildcards.run_id),
         genome_index_dir=CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
     resources:
         ** CH.get_resources("STAR_Align_Reads", return_job_id=False),
-        job_id = (lambda wildcards: wildcards.run_name)
-    output:
-        aligned = CH.get_parameters("STAR_Align_Reads")["outdir_fprefix"] + "{run_id}.Aligned.sortedByCoord.out.bam"
-
+        job_id = (lambda wildcards: wildcards.run_id)
+    output: CH.get_parameters("STAR_Align_Reads")["outdir_fprefix"] + "{run_id}.Aligned.sortedByCoord.out.bam"
     shell:
         "STAR --runThreadN {params.nthreads}"
         " --runMode {params.run_mode}"
