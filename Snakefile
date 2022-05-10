@@ -47,7 +47,7 @@ print(DM.shared_data)
 # Rule 0: Defining global outputs
 # ----------------------------------------------------------------------------
 
-rule all: # static output unpacking should all go last
+rule All: # static output unpacking should all go last
     input:
         expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=DM.get_shared_data({}, "run_name")),
         DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
@@ -99,9 +99,7 @@ rule STAR_Align_Reads:
     input:
         fastq1 = lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq1"),
         fastq2= lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq2"),
-        **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"]),
-
-
+        **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"])
     params:
         **CH.get_parameters("STAR_Align_Reads"),
         run_name = (lambda wildcards: wildcards.run_name),
