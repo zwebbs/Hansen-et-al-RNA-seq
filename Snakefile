@@ -91,8 +91,13 @@ else: # create the index if it doesn't exist, verify contents afterwords
 # split alignment by sequencing runs
 rule STAR_Align_Reads:
     input:
-        **DM.get_rule_data("Verify_Index_Contents", ["outputs"]),
-        fastqs=DM.get_from_shared_data(["libraries", "runs", "run_name"],"{run_name}",["fastq1","fastq2"])
+        **DM.get_rule_data("Verify_Index_Contents", ["outputs"])
+
+
+
+
+
+#        genome_index = rules.STAR_Create_Genome_Indices.output.genome_index_dir,
 #    params:
 #        sample_id = (lambda wildcards: wildcards.sample_id),
 #        sample_fastq_gz = (lambda wildcards: utils.get_fastq_gz(wildcards.sample_id,sample_metadata)),
