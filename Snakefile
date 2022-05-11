@@ -66,8 +66,7 @@ if Path(genome_index_dir).exists():
         output: **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"])
         resources: **CH.get_resources("Verify_Index_Contents")
         shell:
-            "check_directory --strict"
-            " -o {output.rc_out}"
+            "check_directory -o {output.rc_out}"
             " {params.genome_index_manifest} {params.genome_index_dir}"
 
 else: # create the index if it doesn't exist, verify contents afterwords
@@ -85,8 +84,7 @@ else: # create the index if it doesn't exist, verify contents afterwords
             " --sjdbGTFfile {input.transcript_gtf_path}"
             " --sjdbOverhang {params.sjdbOverhang}"
             " {params.extra_args} &&"
-            " check_directory --strict"
-            " -o {output.rc_out}"
+            " check_directory -o {output.rc_out}"
             " {params.genome_index_manifest}"
             " {params.genome_index_dir}"
 
