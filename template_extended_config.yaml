@@ -1,0 +1,103 @@
+---
+# File Name: test.gardnersnake_rnaseq_basic.yaml
+# Created By: ZW
+# Created On: 2022-05-03
+# Purpose: dummy gardner extended configuration for rnaseq workflow
+
+# first yaml doc contains schema for generic workflow configurations
+analysis_id: "my-RNA-Seq-workflow"
+workdir: '/my/working/dir/'
+rule_params: [
+  {
+    rule_name: "Verify_Index_Contents",
+    resources: {
+      walltime: "00:10:00",
+      nodes: 1,
+      processors_per_node: 1,
+      total_memory: 2000,
+      log_dir: "logs/",
+      job_id: ''
+    }
+  },
+  {
+    rule_name: "STAR_Create_Genome_Index",
+    resources: {
+      walltime: "06:00:00",
+      nodes: 1,
+      processors_per_node: 6,
+      total_memory: 64000,
+      log_dir: "logs/",
+      job_id: ''
+    },
+    parameters: {
+      nthreads: 6,
+      sjdbOverhang: 49,
+      genome_index_manifest: [
+        "Genome", "chrLength.txt", "exonGeTrInfo.tab", "sjdbInfo.txt",
+        "Log.out", "chrName.txt", "exonInfo.tab", "sjdbList.fromGTF.out.tab",
+        "SA", "chrNameLength.txt", "geneInfo.tab", "sjdbList.out.tab",
+        "SAindex", "chrStart.txt", "genomeParameters.txt", "transcriptInfo.tab"
+      ],
+    genome_index_dir: "/path/to/my/genome/index/",
+      extra_args: ''
+    }
+  },
+  {
+    rule_name: "STAR_Align_Reads",
+    resources: {
+      walltime: "02:00:00",
+      nodes: 1,
+      processors_per_node: 6,
+      total_memory: 32000,
+      log_dir: "logs/",
+      job_id: ''
+    },
+    parameters: {
+      nthreads: 4,
+      run_mode: "alignReads",
+      quant_mode: "GeneCounts",
+      read_files_command: "gunzip -c",
+      outdir_fprefix: "data/align/",
+      output_SAM_type: "BAM SortedByCoordinate",
+      output_SAM_unmapped: "Within",
+      output_SAM_attributes: "Standard",
+      extra_args: ''
+    }
+  }
+]
+
+---
+# second yaml doc contains schema for metadata (sequencing files, etc.)
+shared_data: [
+  {
+    library_name: "lib1",
+    run_name: "sample1",
+    fastq1: "/data/raw/lib1/sample1.fastq.gz",
+    fastq2: null
+  },
+  {
+    library_name: "lib2",
+    run_name: "sample2",
+    fastq1: "data/raw/lib2/sample2.fastq.gz",
+    fastq2: null
+  },
+  {
+    library_name: "lib3",
+    run_name: "sample3",
+    fastq1: "data/raw/lib3/sample3.fastq.gz",
+    fastq2: null
+   }
+]
+
+rule_data: [
+  {
+    rule_name: "STAR_Create_Genome_Index",
+    static_inputs: {
+      genome_fasta_path: "/path/to/current/genome.fa",
+      transcript_gtf_path: "/path/to/current/transcriptome/.gtf"
+    },
+    static_outputs: {
+      rc_out: "verify_index_contents.rc.out"
+    }
+  }
+]

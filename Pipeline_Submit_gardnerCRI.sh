@@ -13,8 +13,7 @@
 # Purpose: runs the RNA-seq pipeline for given samples on CRI Gardner HPC
 
 # check passed commandline arguments
-## of which there are three.
-###   -w <working directory for the analysis> [required]
+## of which there are two.
 ###   -c <analysis configuration file .json> [required]
 ###   -d (BOOLEAN flag to complete a snakemake dry run) [optional]
 
