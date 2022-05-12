@@ -50,6 +50,8 @@ RUN_IDS = DM.get_shared_data({}, "run_name")
 rule all: # static output unpacking should all go last
     input:
         expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.MarkDups.bam", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}.MarkDups.metrics.txt", run_id=RUN_IDS),
         **DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
 
 
