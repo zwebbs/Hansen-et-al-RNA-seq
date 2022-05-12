@@ -63,6 +63,34 @@ rule_params: [
       output_SAM_attributes: "Standard",
       extra_args: ''
     }
+  },
+  {
+    rule_name: "GATK_Mark_Duplicates",
+    parameters: {
+      extra_args: '',
+    },
+    resources: {
+      walltime: "01:00:00",
+      nodes: 1,
+      processors_per_node: 4,
+      total_memory: 16000,
+      log_dir: "logs/",
+      job_id: ''
+    }
+  },
+  {
+    rule_name: "Samtools_Merge_Alignments",
+    parameters: {
+      do_merge: true,
+    },
+    resources: {
+      walltime: "00:10:00",
+      nodes: 1,
+      processors_per_node: 1,
+      total_memory: 2000,
+      log_dir: "logs/",
+      job_id: ''
+    }
   }
 ]
 

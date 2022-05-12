@@ -10,6 +10,7 @@
 import gardnersnake as gs
 from gardnersnake.misc.exceptions import UserError
 from pathlib import Path
+from pandas import DataFrame
 
 # workflow setup
 # ----------------------------------------------------------------------------
@@ -36,26 +37,24 @@ DM = gs.DataManager(meta, schema_type=data_schema)
 analysis_id = CH.get_glob('analysis_id')
 workdir: CH.get_glob('workdir')
 
-# Globals
+# globals
 # --------------------------
 ALIGN_DIR = CH.get_parameters("STAR_Align_Reads")["outdir_fprefix"]
+RUN_IDS = DM.get_shared_data({}, "run_name")
 
-print(DM.shared_data)
 # workflow
 #----------------
 
-# Rule 0: Defining global outputs
+# rule 0: Defining global outputs
 # ----------------------------------------------------------------------------
-
 rule all: # static output unpacking should all go last
     input:
-        expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=DM.get_shared_data({}, "run_name")),
+        expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS),
         **DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
 
 
-# Rule 1: Verify Genome Index or Create a new one.
+# rule 1: Verify Genome Index or Create a new one.
 # ----------------------------------------------------------------------------
-
 # check if the index already exists and verify its contents
 # use parameters and outputs of rule STAR_Create_Genome_Index because they
 # are identical
@@ -89,23 +88,22 @@ else: # create the index if it doesn't exist, verify contents afterwords
             " {params.genome_index_dir}"
 
 
-# Rule 2: Aligning RNA-Seq reads using STAR
+# rule 2: Aligning RNA-Seq reads using STAR
 #-----------------------------------------------------------------------------
-
 # scatter individual runs and align
 rule STAR_Align_Reads:
     input:
-        fastq1 = lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq1"),
-        fastq2 = lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq2"),
+        fastq1 = (lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq1")),
+        fastq2 = (lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"fastq2")),
         **DM.get_rule_data("STAR_Create_Genome_Index", ["static_outputs"])
     params:
         **CH.get_parameters("STAR_Align_Reads"),
         run_id = (lambda wildcards: wildcards.run_id),
-        genome_index_dir=CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
+        genome_index_dirn = CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
     resources:
         ** CH.get_resources("STAR_Align_Reads", return_job_id=False),
         job_id = (lambda wildcards: wildcards.run_id)
-    output: CH.get_parameters("STAR_Align_Reads")["outdir_fprefix"] + "{run_id}.Aligned.sortedByCoord.out.bam"
+    output: ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam"
     shell:
         "STAR --runThreadN {params.nthreads}"
         " --runMode {params.run_mode}"
@@ -119,21 +117,53 @@ rule STAR_Align_Reads:
         " --outSAMattributes {params.output_SAM_attributes}"
         " {params.extra_args}"
 
+# merge output alignments to shared metadata file
+align_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
+    expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS)
+    ), columns=["run_name", "alignment"])
+DM.loj_shared_data(to_add=align_table, on=["run_name"], indicator=False)
 
 
-#if Samtools_Merge_configs["do_merge"]:
-#    rule Samtools_Merge:
-#        input:
-#            alignments = expand(rules.STAR_Align_Reads.output.alignment, sample_id=sample_ids)
-#        resources:
-#            walltime = Samtools_Merge_configs["walltime"],
-#            nodes = Samtools_Merge_configs["nodes"],         
-#            processors_per_node = Samtools_Merge_configs["processors_per_node"],
-#            total_memory = Samtools_Merge_configs["total_memory"],  
-#            logdir = "logs/",
-#            job_id = (lambda wildcards: wildcards.sample_id)
-#        shell:
-#            "echo {input.alignments} > tomerge.txt"
+# rule 3: MarkDuplicates in the alignments
+# -----------------------------------------------------------------------------
+# use gatk-picardtools to mark duplicates in alignments
+rule GATK_Mark_Duplicates:
+    input: (lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"alignment"))
+    params: **CH.get_parameters("GATK_Mark_Duplicates")
+    output:
+        metrics = (ALIGN_DIR + "{run_id}.MarkDups.metrics.txt"),
+        align_md = (ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.MarkDups.bam")
+    resources: **CH.get_resources("GATK_Mark_Duplicates", return_job_id=True)
+    shell:
+        "gatk MarkDuplicates"
+        " -Xms{resources.total_memory}m -Xmx{resources.total_memory}m"
+        " -I={input} -M={output.metrics}"
+        " -O={output.align_md} {params.extra_args}"
+
+# add references to output MarkDups alignment files to shared metadata file
+markdups_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
+    expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS)),
+    columns=["run_name", "alignment_markdups"])
+DM.loj_shared_data(to_add=markdups_table, on=["run_name"], indicator=False)
 
 
-##Mark Duplicates using Picard tools
+
+
+
+
+
+
+# rule 3: Merge outputs into a single BAM file (optional)
+#-----------------------------------------------------------------------------
+# check if we want to create a merged output BAM and proceed accordingly
+# do_merge = CH.get_parameters("Samtools_Merge_Alignments")["do_merge"]
+# if do_merge:
+#     rule Samtools_Merge_Alignments:
+#         input: **DM.get_shared_data({},"alignment_markdups")
+#         resources: **CH.get_resources("Samtools_Merge_Alignments", return_job_id=True)
+#         output: **DM.get_rule_data("Samtools_Merge_Alignments", ["static_outputs"])
+#         shell:
+#             "samtools merge -o {output.merged_alignment_name} {input}"
+#
+#
+# ##Mark Duplicates using Picard tools
