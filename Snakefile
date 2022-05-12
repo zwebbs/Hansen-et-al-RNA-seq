@@ -124,7 +124,7 @@ align_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
     expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS)
     ), columns=["run_name", "alignment"])
 DM.loj_shared_data(to_add=align_table, on=["run_name"], indicator=False)
-
+print(DM.shared_data)
 
 # rule 3: MarkDuplicates in the alignments
 # -----------------------------------------------------------------------------
@@ -135,12 +135,14 @@ rule GATK_Mark_Duplicates:
     output:
         metrics = (ALIGN_DIR + "{run_id}.MarkDups.metrics.txt"),
         align_md = (ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.MarkDups.bam")
-    resources: **CH.get_resources("GATK_Mark_Duplicates", return_job_id=True)
+    resources:
+        **CH.get_resources("GATK_Mark_Duplicates", return_job_id=False),
+        job_id = (lambda wildcards: wildcards.run_id)
     shell:
         "gatk MarkDuplicates"
-        " -Xms{resources.total_memory}m -Xmx{resources.total_memory}m"
-        " -I={input} -M={output.metrics}"
-        " -O={output.align_md} {params.extra_args}"
+        " --java-options '-Xms{resources.total_memory}m -Xmx{resources.total_memory}m'"
+        " -I {input} -M {output.metrics}"
+        " -O {output.align_md} {params.extra_args}"
 
 # add references to output MarkDups alignment files to shared metadata file
 markdups_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),

@@ -47,4 +47,4 @@ snakemake --snakefile Snakefile \
      -S /bin/bash \
      -e {resources.log_dir}{rulename}_{resources.job_id}.err \
      -o {resources.log_dir}{rulename}_{resources.job_id}.out" \
-     ${dry_run_flag}
+     ${dry_run_flag} 1> rnaseq-workflow_gardner.out 2> rnaseq-workflow_gardner.err 
