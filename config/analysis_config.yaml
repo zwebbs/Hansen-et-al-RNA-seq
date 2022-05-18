@@ -5,8 +5,8 @@
 # Purpose: dummy gardner extended configuration for rnaseq workflow
 
 # first yaml doc contains schema for generic workflow configurations
-analysis_id: "my-RNA-Seq-workflow"
-workdir: '/my/working/dir/'
+analysis_id: "hansen-crispr"
+workdir: '/gpfs/data/nobrega-lab/zach/Hansen-et-al-RNA-Seq/'
 rule_params: [
   {
     rule_name: "Verify_Index_Contents",
@@ -31,14 +31,14 @@ rule_params: [
     },
     parameters: {
       nthreads: 6,
-      sjdbOverhang: 49,
+      sjdbOverhang: 85,
       genome_index_manifest: [
         "Genome", "chrLength.txt", "exonGeTrInfo.tab", "sjdbInfo.txt",
         "Log.out", "chrName.txt", "exonInfo.tab", "sjdbList.fromGTF.out.tab",
         "SA", "chrNameLength.txt", "geneInfo.tab", "sjdbList.out.tab",
         "SAindex", "chrStart.txt", "genomeParameters.txt", "transcriptInfo.tab"
       ],
-    genome_index_dir: "/path/to/my/genome/index/",
+    genome_index_dir: "/gpfs/data/nobrega-lab/zach/ref/STAR/hg38.p13-87bpPE/",
       extra_args: ''
     }
   },
@@ -77,20 +77,6 @@ rule_params: [
       log_dir: "logs/",
       job_id: ''
     }
-  },
-  {
-    rule_name: "Samtools_Merge_Alignments",
-    parameters: {
-      do_merge: true,
-    },
-    resources: {
-      walltime: "00:10:00",
-      nodes: 1,
-      processors_per_node: 1,
-      total_memory: 2000,
-      log_dir: "logs/",
-      job_id: ''
-    }
   }
 ]
 
@@ -121,8 +107,8 @@ rule_data: [
   {
     rule_name: "STAR_Create_Genome_Index",
     static_inputs: {
-      genome_fasta_path: "/path/to/current/genome.fa",
-      transcript_gtf_path: "/path/to/current/transcriptome/.gtf"
+      genome_fasta_path: "/gpfs/data/nobrega-lab/zach/ref/genomes/hg38.p13/hg38.p13.fa",
+      transcript_gtf_path: "/gpfs/data/nobrega-lab/zach/ref/transcriptomes/hg38.p13/hg38.p13.NCBI_RefSeq.gtf"
     },
     static_outputs: {
       rc_out: "verify_index_contents.rc.out"

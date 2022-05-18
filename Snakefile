@@ -124,7 +124,7 @@ align_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
     expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS)
     ), columns=["run_name", "alignment"])
 DM.loj_shared_data(to_add=align_table, on=["run_name"], indicator=False)
-print(DM.shared_data)
+
 
 # rule 3: MarkDuplicates in the alignments
 # -----------------------------------------------------------------------------

@@ -1,11 +1,7 @@
-# test specific items
-test/data/
-*.out
-*.err
-
-# snakemake specific items
+# workflow specific items
+data/raw/
+data/align/
 .snakemake/
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

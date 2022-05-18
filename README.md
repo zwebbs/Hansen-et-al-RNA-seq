@@ -1,5 +1,18 @@
 # RNA-Seq Pipeline
 
+## Preparing the Workflow Environment
+
+This Snakemake workflow requires Python 3.7, and was completed on Python 3.7.6. Later distributions of Python >= 3.7.6 may also work but we make no garuntees of forward compatibility. For maintaining multiple versions of Python on a single system, we highly recommend [Pyenv](https://github.com/pyenv/pyenv).  
+With Python 3.7.6 as your primary interpreter, you can run the following commands in the terminal in order to create an isolated virtual environment and download the required python dependencies from the Python Package Index (PyPI).
+
+```bash
+-bash-4.1$ python3 -m venv env/
+-bash-4.1$ source env/bin/activate
+(env) -bash-4.1$ pip install -r requirements.txt
+```
+
+Additionally, we run these analyses with the help of a PBS-Torque scheduling system. Users not on a system where `qsub` style job submission is standard may have to adapt the workflow submission script and configuration resources to their own architecture.
+
 
 ## Running the Pipeline 
 
