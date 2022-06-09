@@ -7,3 +7,5 @@
 
 gardnersnake==0.2.5
 snakemake==7.6.2
+matplotlib==2.1.1
+multiqc==1.12

@@ -49,9 +49,12 @@ RUN_IDS = DM.get_shared_data({}, "run_name")
 # ----------------------------------------------------------------------------
 rule all: # static output unpacking should all go last
     input:
-        expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS),
-        expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.MarkDups.bam", run_id=RUN_IDS),
-        expand(ALIGN_DIR + "{run_id}.MarkDups.metrics.txt", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.MarkDups.bam", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}/" + "{run_id}.MarkDups.metrics.txt", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}/" + "{run_id}.ReadsPerGene.out.tab", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}/" + "{run_id}.samtools_flagstats.txt", run_id=RUN_IDS),
+        expand(ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.MarkDups.bam.bai", run_id=RUN_IDS),
         **DM.get_rule_data("STAR_Create_Genome_Index",["static_outputs"])
 
 
@@ -101,11 +104,13 @@ rule STAR_Align_Reads:
     params:
         **CH.get_parameters("STAR_Align_Reads"),
         run_id = (lambda wildcards: wildcards.run_id),
-        genome_index_dirn = CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
+        genome_index_dir = CH.get_parameters("STAR_Create_Genome_Index")["genome_index_dir"]
     resources:
         ** CH.get_resources("STAR_Align_Reads", return_job_id=False),
         job_id = (lambda wildcards: wildcards.run_id)
-    output: ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam"
+    output: 
+        (ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.out.bam"),
+        (ALIGN_DIR + "{run_id}/" + "{run_id}.ReadsPerGene.out.tab")
     shell:
         "STAR --runThreadN {params.nthreads}"
         " --runMode {params.run_mode}"
@@ -113,7 +118,7 @@ rule STAR_Align_Reads:
         " --genomeDir {params.genome_index_dir}/"
         " --readFilesIn {input.fastq1} {input.fastq2}"
         " --readFilesCommand {params.read_files_command}"
-        " --outFileNamePrefix {params.outdir_fprefix}/{params.run_id}."
+        " --outFileNamePrefix {params.outdir_fprefix}/{params.run_id}/{params.run_id}."
         " --outSAMtype {params.output_SAM_type}"
         " --outSAMunmapped {params.output_SAM_unmapped}"
         " --outSAMattributes {params.output_SAM_attributes}"
@@ -121,8 +126,9 @@ rule STAR_Align_Reads:
 
 # merge output alignments to shared metadata file
 align_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
-    expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS)
-    ), columns=["run_name", "alignment"])
+    expand(ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS),
+    expand(ALIGN_DIR + "{run_id}/" + "{run_id}.ReadsPerGene.out.tab", run_id=RUN_IDS)),
+    columns=["run_name", "alignment", "counts_table"])
 DM.loj_shared_data(to_add=align_table, on=["run_name"], indicator=False)
 
 
@@ -133,8 +139,8 @@ rule GATK_Mark_Duplicates:
     input: (lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"alignment"))
     params: **CH.get_parameters("GATK_Mark_Duplicates")
     output:
-        metrics = (ALIGN_DIR + "{run_id}.MarkDups.metrics.txt"),
-        align_md = (ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.MarkDups.bam")
+        metrics = (ALIGN_DIR + "{run_id}/" + "{run_id}.MarkDups.metrics.txt"),
+        align_md = (ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.MarkDups.bam")
     resources:
         **CH.get_resources("GATK_Mark_Duplicates", return_job_id=False),
         job_id = (lambda wildcards: wildcards.run_id)
@@ -146,28 +152,38 @@ rule GATK_Mark_Duplicates:
 
 # add references to output MarkDups alignment files to shared metadata file
 markdups_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
-    expand(ALIGN_DIR + "{run_id}.Aligned.sortedByCoord.out.bam", run_id=RUN_IDS)),
-    columns=["run_name", "alignment_markdups"])
+    expand(ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.MarkDups.bam", run_id=RUN_IDS),
+    expand(ALIGN_DIR + "{run_id}/" + "{run_id}.MarkDups.metrics.txt", run_id=RUN_IDS)),
+    columns=["run_name", "alignment_markdups", "metrics_markdups"])
 DM.loj_shared_data(to_add=markdups_table, on=["run_name"], indicator=False)
 
+# create comprehensive metadata csv and write it out for downstream analysis
+DM.shared_data.to_csv((ALIGN_DIR + "sample_align_metadata.csv"), sep=",", header=True, index=False)
 
 
+# rule 4: Samtools stats from the markdups  alignments
+# -----------------------------------------------------------------------------
+# use gatk-picardtools to mark duplicates in alignments
+rule Samtools_Flagstats:
+    input: (lambda wildcards: DM.get_shared_data({'run_name': f"{wildcards.run_id}"},"alignment_markdups"))
+    resources:
+        **CH.get_resources("Samtools_Flagstats", return_job_id=False),
+        job_id = (lambda wildcards: wildcards.run_id)
+    output:
+        flagstats_out = (ALIGN_DIR + "{run_id}/" + "{run_id}.samtools_flagstats.txt"),
+        bai = (ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.MarkDups.bam.bai")
+    shell:
+        "samtools index {input} && samtools flagstat -O tsv {input} > {output.flagstats_out}"
 
 
+# add references to output MarkDups alignment files to shared metadata file
+flagstats_table = DataFrame(zip(DM.get_shared_data({}, "run_name"),
+    expand(ALIGN_DIR + "{run_id}/" + "{run_id}.Aligned.sortedByCoord.MarkDups.bam.bai", run_id=RUN_IDS),
+    expand(ALIGN_DIR + "{run_id}/" + "{run_id}.samtools_flagstats.txt", run_id=RUN_IDS)),
+    columns=["run_name", "alignment_markdups_index", "flagstats_tsv"])
+DM.loj_shared_data(to_add=flagstats_table, on=["run_name"], indicator=False)
 
+# create comprehensive metadata csv and write it out for downstream analysis
+DM.shared_data.to_csv((ALIGN_DIR + "sample_align_metadata.csv"), sep=",", header=True, index=False)
 
-
-# rule 3: Merge outputs into a single BAM file (optional)
-#-----------------------------------------------------------------------------
-# check if we want to create a merged output BAM and proceed accordingly
-# do_merge = CH.get_parameters("Samtools_Merge_Alignments")["do_merge"]
-# if do_merge:
-#     rule Samtools_Merge_Alignments:
-#         input: **DM.get_shared_data({},"alignment_markdups")
-#         resources: **CH.get_resources("Samtools_Merge_Alignments", return_job_id=True)
-#         output: **DM.get_rule_data("Samtools_Merge_Alignments", ["static_outputs"])
-#         shell:
-#             "samtools merge -o {output.merged_alignment_name} {input}"
-#
-#
-# ##Mark Duplicates using Picard tools
+      

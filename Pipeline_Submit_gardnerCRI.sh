@@ -17,9 +17,12 @@
 ###   -c <analysis configuration file .json> [required]
 ###   -d (BOOLEAN flag to complete a snakemake dry run) [optional]
 
-while getopts ":c:d" 'opt';
+while getopts ":j:c:d" 'opt';
 do
     case ${opt} in
+        j)
+            parallel_jobs=${OPTARG}
+            ;; # capture command line argument for number of concurrent jobs
         c) 
             config_file="${OPTARG}"
             ;; # capture command line argument for config file
@@ -34,12 +37,14 @@ do
 done
 
 # print options
+echo "number of concurrent jobs: ${parallel_jobs}"
 echo "selected config file: ${config_file}"
 echo "dry run ?: ${dry_run_flag}"
 
 # run the snakemake workflow
 snakemake --snakefile Snakefile \
-    -j 24 -kp --rerun-incomplete --config cluster_id="GARDNER" extended_config=${config_file} \
+    -j ${parallel_jobs} -kp --rerun-incomplete \
+    --config cluster_id="GARDNER" extended_config=${config_file} \
     --cluster "qsub -V -l walltime={resources.walltime} \
      -l nodes={resources.nodes}:ppn={resources.processors_per_node} \
      -l mem={resources.total_memory}mb \
@@ -47,4 +52,5 @@ snakemake --snakefile Snakefile \
      -S /bin/bash \
      -e {resources.log_dir}{rulename}_{resources.job_id}.err \
      -o {resources.log_dir}{rulename}_{resources.job_id}.out" \
-     ${dry_run_flag} 1> rnaseq-workflow_gardner.out 2> rnaseq-workflow_gardner.err 
+     ${dry_run_flag} 1> "hansen-rnaseq_gardner.out" 2> "hansen-rnaseq_gardner.err"
+

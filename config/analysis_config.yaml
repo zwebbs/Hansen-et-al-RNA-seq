@@ -38,7 +38,7 @@ rule_params: [
         "SA", "chrNameLength.txt", "geneInfo.tab", "sjdbList.out.tab",
         "SAindex", "chrStart.txt", "genomeParameters.txt", "transcriptInfo.tab"
       ],
-    genome_index_dir: "/gpfs/data/nobrega-lab/zach/ref/STAR/hg38.p13-87bpPE/",
+      genome_index_dir: "/gpfs/data/nobrega-lab/zach/ref/STAR/hg38.p13-87bpPE/",
       extra_args: ''
     }
   },
@@ -83,24 +83,270 @@ rule_params: [
 ---
 # second yaml doc contains schema for metadata (sequencing files, etc.)
 shared_data: [
-  {
-    library_name: "lib1",
-    run_name: "sample1",
-    fastq1: "/data/raw/lib1/sample1.fastq.gz",
-    fastq2: null
+  {  #1
+    library_name: "MN-LZ-1S-cmp24S-1-1a",
+    run_name: "1-1a_S10_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-1a_S10_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-1a_S10_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 2
   },
-  {
-    library_name: "lib2",
-    run_name: "sample2",
-    fastq1: "data/raw/lib2/sample2.fastq.gz",
-    fastq2: null
+  {  #2
+    library_name: "MN-LZ-1S-cmp24S-1-1b",
+    run_name: "1-1b_S11_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-1b_S11_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-1b_S11_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 2
   },
-  {
-    library_name: "lib3",
-    run_name: "sample3",
-    fastq1: "data/raw/lib3/sample3.fastq.gz",
-    fastq2: null
-   }
+  {  #3
+    library_name: "MN-LZ-1S-cmp24S-1-1c",
+    run_name: "1-1c_S12_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-1c_S12_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-1c_S12_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 2
+  },
+  {  #4
+    library_name: "MN-LZ-1S-cmp24S-1-4a",
+    run_name: "1-4a_S13_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-4a_S13_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-4a_S13_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 1
+  },
+  {  #5
+    library_name: "MN-LZ-1S-cmp24S-1-4b",
+    run_name: "1-4b_S14_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-4b_S14_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-4b_S14_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 1
+  },
+  {  #6
+    library_name: "MN-LZ-1S-cmp24S-1-4c",
+    run_name: "1-4c_S15_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-4c_S15_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-4c_S15_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 1
+  },
+  {  #7
+    library_name: "MN-LZ-1S-cmp24S-1-5a",
+    run_name: "1-5a_S16_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-5a_S16_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-5a_S16_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 0
+  },
+  {  #8
+    library_name: "MN-LZ-1S-cmp24S-1-5b",
+    run_name: "1-5b_S17_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-5b_S17_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-5b_S17_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 0
+  },
+  {  #9
+    library_name: "MN-LZ-1S-cmp24S-1-5c",
+    run_name: "1-5c_S18_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-1-5c_S18_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-1-5c_S18_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs4955430",
+    SNP_chrom: "chr3",
+    SNP_pos: 49340655,
+    del_GT: 0
+  },
+  {  #10
+    library_name: "MN-LZ-1S-cmp24S-3-1a",
+    run_name: "3-1a_S1_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-1a_S1_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-1a_S1_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 0
+  },
+  {  #11
+    library_name: "MN-LZ-1S-cmp24S-3-1b",
+    run_name: "3-1b_S2_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-1b_S2_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-1b_S2_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 0
+  },
+  {  #12
+    library_name: "MN-LZ-1S-cmp24S-3-1c",
+    run_name: "3-1c_S3_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-1c_S3_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-1c_S3_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 0 
+  },
+  {  #13
+    library_name: "MN-LZ-1S-cmp24S-3-3a",
+    run_name: "3-3a_S4_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-3a_S4_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-3a_S4_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 2
+  },
+  {  #14
+    library_name: "MN-LZ-1S-cmp24S-3-3b",
+    run_name: "3-3b_S5_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-3b_S5_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-3b_S5_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 2
+  },
+  {  #15
+    library_name: "MN-LZ-1S-cmp24S-3-3c",
+    run_name: "3-3c_S6_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-3c_S6_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-3c_S6_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 2 
+  },
+  {  #16
+    library_name: "MN-LZ-1S-cmp24S-3-4a",
+    run_name: "3-4a_S7_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-4a_S7_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-4a_S7_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 1
+  },
+  {  #17
+    library_name: "MN-LZ-1S-cmp24S-3-4b",
+    run_name: "3-4b_S8_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-4b_S8_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-4b_S8_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 1
+  },
+  {  #18
+    library_name: "MN-LZ-1S-cmp24S-3-4c",
+    run_name: "3-4c_S9_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-3-4c_S9_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-3-4c_S9_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs6446275",
+    SNP_chrom: "chr3",
+    SNP_pos: 49429438,
+    del_GT: 1
+  },
+  {  #19
+    library_name: "MN-LZ-1S-cmp24S-15-1a",
+    run_name: "15-1a_S19_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-15-1a_S19_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-15-1a_S19_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs10947532",
+    SNP_chrom: "chr6",
+    SNP_pos: 34812538,
+    del_GT: 0
+  },
+  {  #20
+    library_name: "MN-LZ-1S-cmp24S-15-1b",
+    run_name: "15-1b_S20_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-15-1b_S20_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-15-1b_S20_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs10947532",
+    SNP_chrom: "chr6",
+    SNP_pos: 34812538,
+    del_GT: 0
+  },
+  {  #21
+    library_name: "MN-LZ-1S-cmp24S-15-1c",
+    run_name: "15-1c_S21_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-15-1c_S21_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-15-1c_S21_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs10947532",
+    SNP_chrom: "chr6",
+    SNP_pos: 34812538,
+    del_GT: 0 
+  },
+  {  #22
+    library_name: "MN-LZ-1S-cmp24S-15-2a",
+    run_name: "15-2a_S22_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-15-2a_S22_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-15-2a_S22_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs10947532",
+    SNP_chrom: "chr6",
+    SNP_pos: 34812538,
+    del_GT: 1
+  },
+  {  #23
+    library_name: "MN-LZ-1S-cmp24S-15-2b",
+    run_name: "15-2b_S23_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-15-2b_S23_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-15-2b_S23_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs10947532",
+    SNP_chrom: "chr6",
+    SNP_pos: 34812538,
+    del_GT: 1
+  },
+  {  #24
+    library_name: "MN-LZ-1S-cmp24S-15-2c",
+    run_name: "15-2c_S24_R1",
+    fastq1: "data/raw/MN-LZ-1S-cmp24S-15-2c_S24_R1_001.fastq.gz",
+    fastq2: "data/raw/MN-LZ-1S-cmp24S-15-2c_S24_R2_001.fastq.gz",
+    organism: "HUMAN",
+    SNP_roi: "rs10947532",
+    SNP_chrom: "chr6",
+    SNP_pos: 34812538,
+    del_GT: 1 
+  }
 ]
 
 rule_data: [
