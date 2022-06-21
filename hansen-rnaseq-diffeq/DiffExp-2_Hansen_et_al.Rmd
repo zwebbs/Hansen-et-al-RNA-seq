@@ -1,0 +1,651 @@
+---
+title: "Differential Expression, Hansen et al."
+author: "Zachary Weber"
+date: "5/19/2022"
+output: 
+  pdf_document: 
+    toc: yes
+    number_sections: yes
+    highlight: tango
+editor_options: 
+  chunk_output_type: console
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+```
+
+# R Environment Setup
+
+For the differential expression analysis we're going to make use of a number of packages, some of which we'll need to download using BioConductor. For the statistical analyses of the RNA-Seq data, we're going to be using [edgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html), a popular package which Directly models RNA-Seq counts data using negative binomial models. We're also going to download the package [qvalue](https://bioconductor.org/packages/release/bioc/html/qvalue.html) which makes doing FDR procedures for multiple-test corrections easy.
+
+ 
+
+```{r, warning=FALSE, message=FALSE}
+# install BiocManager
+if (!require("BiocManager", quietly=TRUE)) {
+  install.packages("BiocManager")
+  BiocManager::install(version="3.15")
+}
+
+# install BioConductor packages
+bioc_packages <- c("edgeR", "Gviz", "GenomicRanges", "qvalue")
+BiocManager::install(bioc_packages)
+library(edgeR)
+library(Gviz)
+library(GenomicRanges)
+library(qvalue)
+
+```
+
+ 
+
+We'll also make use of some R packages found in CRAN, these are [dplyr](https://rdocumentation.org/packages/dplyr/versions/0.7.8) for data wrangling, [ggplot2](https://rdocumentation.org/packages/ggplot2/versions/3.3.6) for advanced graphics construction, and [ggrepel](https://rdocumentation.org/packages/ggrepel/versions/0.9.1) for better text labels on graphics. We utilize [stringr](https://www.rdocumentation.org/packages/stringr/versions/1.4.0) for convenient grep-style operations. Finally, we make use of [RColorBrewer](https://www.rdocumentation.org/packages/RColorBrewer/versions/1.1-3/topics/RColorBrewer) and [wesanderson](https://www.rdocumentation.org/packages/repurrrsive/versions/1.0.0/topics/wesanderson) for expanded color palletes in plotting.
+
+Each of these packages, except [ggrepel](https://rdocumentation.org/packages/ggrepel/versions/0.9.1) and [RColorBrewer](https://www.rdocumentation.org/packages/RColorBrewer/versions/1.1-3/topics/RColorBrewer), is contained in the super-package [tidyverse](https://www.rdocumentation.org/packages/tidyverse/versions/1.3.1).
+
+ 
+
+```{r, warning=FALSE, message=FALSE}
+# install CRAN packages
+library(tidyverse)
+library(ggrepel)
+library(RColorBrewer)
+library(wesanderson)
+```
+
+# Loading and Formatting the Counts Data
+
+The experimental information from the pipeline is stored in a sample metadata file called **sample_align_metadata.csv**. We can read in this information, and use it to load our counts data and their corresponding annotations. From the sample metadata, we will collect the sample name, the SNP-centered enhancer target, its deletion genotype (0 -\> WT, 1 -\> D/WT, 2-\> D/D), as well as the name of the counts table file.
+
+ 
+
+```{r}
+# load the sample metadata
+sampledata <- read.csv("counts_data/sample_align_metadata.csv",
+                       header=TRUE, stringsAsFactors=FALSE, row.names="run_name"
+                       ) %>% select(.,del_GT,SNP_roi,counts_table) %>%
+                          mutate(., experiment_num=str_match(rownames(.),"^[1-9]+")) %>%                     
+                            mutate_at(., c("counts_table"), basename) %>%
+                              mutate_at(.,c("experiment_num","SNP_roi"), factor)
+
+# show the sample data layout
+head(sampledata)
+```
+
+ 
+
+Next, we use the sample data to create experimental group labels and read in the transcript counts data for each sample. We also will need to remove the meta_tags from each count table. These summary tags begin with the pattern `^N_*` in the htseq-counts tables. These meta_tabs aggregate information particularly on reads which could not be cleanly assigned to specific tags (i.e. multi-mapping reads, unmapped reads, and ambiguous reads).
+
+ 
+
+```{r}
+# load the raw counts data into an edgeR DGEList
+counts_raw <- readDGE(files=sampledata$counts_table,
+                      path="counts_data/",
+                      labels=rownames(sampledata)
+                      ) 
+
+counts_raw$samples$del_GT <- sampledata$del_GT
+counts_raw$samples$enhancer <- sampledata$SNP_roi
+
+# remove meta-tags summarizing multi-mapping, ambiguous, and un-mapped reads
+meta_tags <- grep("^N_", rownames(counts_raw))
+counts_raw <- counts_raw[-meta_tags, ]
+```
+
+ 
+
+Finally, we generate a design matrix that describes the relevant batches and experimental factors present in the data. This design matrix will be used downstream in our regression to estimate deletion effect sizes.
+
+ 
+
+```{r}
+# define design matrix specific to enhancer and genotype
+
+# build a matrix called 'conditions' to encode the deletion genotypes
+conditions <- matrix(0,nrow=nrow(counts_raw$samples), ncol=3)
+rownames(conditions) <- rownames(counts_raw$samples)
+colnames(conditions) <- c("rs4955430_KO", "rs6446275_KO", "rs10947532_KO")
+
+conditions[c(1:9),1] <- 1
+conditions[c(10:18),2] <- 1
+conditions[c(19:24),3] <- 1
+conditions <- conditions * counts_raw$samples$del_GT
+
+head(conditions) # show the coding for the number of Deletion Alleles
+
+# append these conditions to the sample metadata for ease of downstream use
+counts_raw$samples <- cbind.data.frame(counts_raw$samples,
+                                       as.data.frame(conditions)
+                                       )
+
+# form model matrix (here called design) for the deletion genotypes and batch
+fct <- as.formula("~0 + enhancer + rs4955430_KO + rs6446275_KO + rs10947532_KO")
+fct_names <- c("enhancer_rs10947532", "enhancer_rs4955430", 
+               "enhancer_rs6446275", "rs4955430_KO", "rs6446275_KO",
+               "rs10947532_KO")
+
+design <- model.matrix(fct, data=counts_raw$samples)
+colnames(design) <- fct_names
+print(colnames(design))
+```
+
+# Filtering and Normalizing Reads
+
+Before we conduct differential expression analysis we need to filter out genes with exceedingly low expression values, whose differential expression detection power is close to zero. Let us first compute the curve representing the proportion of our tags that retained (1 - the proportion removed by filtering) for a given threshold of average sample abundance.
+
+ 
+
+```{r}
+# define a function to return our retention fraction for a set of thresholds
+test_filter_thresholds <- function(counts_matrix, thresholds) {
+  kept <- sapply(thresholds, function(t) sum(rowMeans(counts_matrix) >= t))
+  proportion.retained <- kept / nrow(counts_matrix)
+  return(proportion.retained)
+}
+
+# run the filtering computation on CPM of the raw counts
+thresholds <- seq(from=0, to=5, by=0.1)
+retention <- test_filter_thresholds(counts_matrix=cpm(counts_raw),
+                                    thresholds=thresholds
+                                    )
+
+```
+
+```{r, echo=FALSE}
+# plot threshold curve (red = 0.35 CPM rowMeans threshold, ~26% tags retained)
+plot(y=retention, x=thresholds, type='l', ylab="Retention",
+     xlab="Threshold", main="Lower CPM Thresholds vs Percent Tags Retained",
+     xlim=c(0,5))
+points(x=thresholds, y=retention, pch=16, col="black")
+abline(v=thresholds[5], lwd=2, col="firebrick1")
+```
+
+From the above curve it seems like a threshold at 0.4 Average CPM (marked above by the red reference line) characterizes the elbow well and will give us the most efficient set of Tags on which to perform downstream analysis. Our retention at this point is about 26%, so we're keeping genes in roughly the top quartile of expression in these cells.
+
+ 
+
+```{r}
+print(sprintf("Lower Threshold: %0.1g, Proportion of Tags Retained: %0.3g",
+      thresholds[5], retention[5])
+      )
+```
+
+We can now filter the counts matrix using the above thresholds, and calculate the library sizes and normalization factors for our data.
+
+ 
+
+```{r}
+# filter the reads
+tokeep <- (rowMeans(cpm(counts_raw)) >= thresholds[5])
+counts_filt <- counts_raw[tokeep, , keep.lib.sizes=FALSE]
+
+# calculate the read normalization factors to use by applying TMM 
+counts_norm <- calcNormFactors(counts_filt, method="TMM")
+```
+
+ 
+
+Visualizing the filtering and normalization process on our abundance distributions:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.height=6}
+par(mfrow=c(2,2))
+
+cols <- rep(brewer.pal(8,"Spectral"), rep(3,8))
+plotDensities(cpm(counts_raw,log=TRUE),legend=FALSE,
+              col=cols, main="Tag Abundances, Pre-Filt/Norm")
+
+plotDensities(cpm(counts_norm,log=TRUE),legend=FALSE,
+              col=cols, main="Tag Abundances, Post-Filt/Norm")
+
+boxplot(cpm(counts_raw, log=TRUE), col=cols, main="")
+
+boxplot(cpm(counts_norm, log=TRUE), col=cols, main="")
+
+par(mfrow=c(1,1))
+```
+
+It can also be helpful to visualize our data on PCA:
+
+```{r}
+# run PCA
+pca.expr <- prcomp(t(cpm(counts_norm)), center=TRUE, scale=TRUE)
+pct.var.explained <- (pca.expr$sdev)^2 / sum((pca.expr$sdev)^2)
+```
+
+```{r}
+# print the percent of variance explained by PCs 1-10
+print(sprintf("Percent Variance Explained by PCs 1-10: %s",
+                     round(sum(pct.var.explained[1:5]),3)))
+```
+
+```{r, echo=FALSE, warning=FALSE, mesage=FALSE}
+# define PCA plotting function
+colset <- wes_palette("Zissou1", n=3, type="continuous")
+plot_pca <- function(pca_obj, normd_counts, colset) {
+  pca.to_plot <- cbind.data.frame(
+    pca_obj$x[,c("PC1", "PC2")],
+    normd_counts$samples$enhancer,
+    normd_counts$samples$del_GT
+    )
+  names(pca.to_plot) <- c("PC1","PC2","enhancer", "GT")
+  
+  # plot PCA
+  p <- ggplot(pca.to_plot, aes(x=PC1, y=PC2, color=enhancer,
+                          label=GT, group=enhancer)) +
+    geom_point(size=4) + 
+    geom_text_repel(seed=3985) +
+    ylim(c(-200,150)) + xlim(c(-100,250)) +
+    theme_minimal() + theme(
+      axis.line.x=element_line(size=0.8, color="black"),
+      axis.line.y=element_line(size=0.8, color="black"),
+      panel.grid.major=element_blank(),
+      panel.grid.minor=element_blank()
+    ) + scale_color_manual(values=colset) +
+    labs(color="Enhancer") +
+    ggtitle("PCA of RNA-Seq Experiments") +
+    ylab("PC2") + xlab("PC1")
+  
+    # return plot
+    return(p)
+}
+# plot the PCA
+plot_pca(pca.expr, counts_norm, colset)
+```
+
+# Estimating Dispersion among our Tags
+
+Estimating dispersion among the tags is key to properly parameterizing the linear models for differential expression analysis. The code below estimates dispersion, contingent on our experimental design, and gives us three options for dispersion parameters: (1) Tag-wise dispersion --\> each gene gets its own sample variance which is derived empirically from the data. (2) Common dispersion --\> each gene gets the same sample variance, based on the average abundance i the sample. Common dispersion assumes counts are Poisson distributed. Finally, (3) Trended Dispersion --\> assumes a Common dispersion for each level of mean abundance, and fits a curve to the data using LOESS regression to find an appropriate paramter. Trended dispersion generally fits with count distribution models which are Negative-Binomial or Gamma-Poisson, which are often more appropriate. In this analysis we will be using Trended dispersion, the `edgeR` default.
+
+ 
+
+```{r}
+# model dispersion and plot the results
+counts_disp <- estimateDisp(counts_norm, design=design, trend.method="loess", robust=TRUE)
+plotBCV(counts_disp)
+```
+
+Visualizing our dispersion across the samples, we can see that the trended dispersion best models the data. In some places the estimated value appears a bit high, due to outliers, but this bias skews our results toward more conservative testing in most cases. There are more aggressive methods available to drawing trended dispersion lines, but this should be fine.
+
+# Fitting Models of differential Expression
+
+Now that we've estimated dispersion we're ready to conduct differential expression analysis. We have three sets of analyses that we're potentially interested in:
+
+1.  Genes in the cis-regulatory region of the enhancer deletion (1 MB window)
+2.  Genes in cis chromosome-wide (all genes on the same chromosome as the deletion)
+3.  All available genes (global analysis of DE)
+
+For convenience, We have gene sets for the first two analyses in a file named *cisregulatory-genesets.txt* (1) and *chrom-genesets.txt* (2). Below we read them into a list and define a convenience function to access them from their comma-delimmited strings.
+
+ 
+
+```{r}
+# load gene sets
+gene_sets <- list(
+  "cisreg"=read.delim("cisregulatory-genesets.txt",
+            header=F, row.names=1, col.names=c("SNP","Genes")),
+  "chrom"=read.delim("chrom-genesets.txt",
+            header=F, row.names=1, col.names=c("SNP","Genes"))
+)
+
+
+# define accessor function
+get_genes <- function(gene_list, enhancer, type) {
+  genes <- gene_list[[type]][enhancer,]
+  return(strsplit(genes, ",")[[1]])
+}
+```
+
+ 
+
+Now we can fit our models ( This step can be done independent of gene sets in the test)
+
+ 
+
+```{r}
+# fit the model using Quasi-Likelihood Fit
+fit <- glmQLFit(counts_disp, design=design)
+```
+
+ 
+
+Next we define a function that takes as input our fit model, gene set of interest, and our coefficient of interest, and outputs the results of the differential expression tests. We also define a function that can concatenate some high level statistics on the DE tests into a table:
+
+ 
+
+```{r}
+# define a function to test DE
+test_diff_exp <-function(fit, genes, coefficient, file.out) {
+  fct_names <- colnames(fit$coefficients)
+  DE <- glmQLFTest(fit, coef=match(coefficient, fct_names))
+  DE$table <- DE$table[rownames(DE$table) %in% genes,]
+  tt <- topTags(DE, n=nrow(DE$table))
+  write.csv(tt, file=file.out)
+  return(DE)
+}
+
+# summarize outputs of multiple DE tests
+summarize_outputs <- function(de_outputs, exp_labels) {
+  res <- sapply(de_outputs, function(x) summary(decideTests(x))) %>% 
+    cbind.data.frame(.)
+  dimnames(res) <- list(c("Down","NS", "Up"), exp_labels)
+  return(res)
+}
+```
+
+## Cis-regulatory Differential Expression
+
+Let's begin by taking a look at cis-regulatory disruption caused by our enhancer deletions:  
+
+```{r}
+exp_names <- c("1-rs4955430", "3-rs6446275", "15-rs10947532")
+
+de_cisreg_1 <- test_diff_exp(fit=fit, coefficient="rs4955430_KO",
+                genes=get_genes(gene_sets, "rs4955430", "cisreg"),
+                file.out="rs4955430-cisreg-de.csv")
+de_cisreg_3 <- test_diff_exp(fit=fit, coefficient="rs6446275_KO",
+                genes=get_genes(gene_sets, "rs6446275", "cisreg"),
+                file.out="rs6446275-cisreg-de.csv")
+de_cisreg_15 <- test_diff_exp(fit=fit, coefficient="rs10947532_KO",
+                get_genes(gene_sets, "rs10947532", "cisreg"),
+                file.out="rs10947532-cisreg-de.csv")
+```
+
+ 
+
+We can summarize the 5% FDR-significant calls in the cis-regulatory regions below by categorizing them into down-regulated genes, not-significantly altered genes, and up-regulated genes.
+
+ 
+
+```{r}
+# generate summary table
+de_cisreg <- list(de_cisreg_1, de_cisreg_3, de_cisreg_15)
+summarize_outputs(de_cisreg, exp_names)
+```
+
+For each experiment, we can generate boxplots for expression of the differentially expressed genes in the cis-regulatory regions.
+
+```{r, echo=FALSE}
+# generate a boxplot function separated by genotype from a counts object
+mypalette <- wes_palette("Zissou1", n=3, type="continuous")
+plot_expression_bp <-function(obj, genes, enhancer) {
+  # extract useful data
+  samples <- (obj$samples$enhancer == enhancer)
+  nsamples <- sum(samples)
+  samples_unq <- samples
+  samples <- rep(rownames(obj$samples)[samples], length(genes))
+  
+  genotypes <- obj$samples[samples, "del_GT"]
+  dat <- data.frame(list(samples,genotypes))
+  colnames(dat) <- c("sample", "genotype")
+  
+  expression <- c()
+  labels <- c()
+  for (g in genes) {
+    tmm <- as.vector(t(cpm(obj[g, samples_unq], log=TRUE)))
+    labs <- rep(g, length(tmm))
+    
+    expression <- append(expression, tmm)
+    labels <- append(labels, labs)
+  }
+  
+  dat$gene <- labels
+  dat$expr <- expression
+  dat$genotype <- factor(dat$genotype, ordered=TRUE,
+            levels=c(2,1,0), labels=c("DEL/DEL","DEL/WT", "WT/WT"))
+  
+  # plot using ggplot
+  bp <- ggplot(dat, aes(y=expr, x=genotype, fill=genotype)) +
+    facet_wrap(~gene, ncol=5) +
+    geom_boxplot(width=0.5, lwd=0.25, fatten=1, color="grey50",
+                 position=position_dodge(1)) +
+    scale_fill_manual(values=mypalette) +
+    theme_minimal() + theme(
+      axis.line.x=element_line(size=0.8, color="black"),
+      axis.line.y=element_line(size=0.8, color="black"),
+      axis.text.x=element_blank(),
+      panel.grid.minor=element_blank()
+    ) +
+    labs(fill="Genotype") +
+    guides(color="none") +
+    ggtitle("") +
+    ylab("Expression (log CPM)") + xlab("Gene x Genotype")
+  return(bp)
+}
+
+# define helper to get altered genes from outputs
+get_altered <- function(de_obj, type) {
+  dcd <- decideTests(de_obj)
+  if (type == "Up")
+    return(rownames(dcd[which(dcd[,1] == 1),]))
+  if (type == "Down")
+    return(rownames(dcd[which(dcd[,1] == -1),]))
+  if (type == "NS")
+    return(rownames(dcd[which(dcd[,1] == 0),]))
+}
+```
+
+Starting with Deletions of Enhancer 1 at rs4955430:
+
+ 
+
+```{r}
+# get dysregulated genes
+upreg_1 <- get_altered(de_cisreg_1,"Up")
+downreg_1 <- get_altered(de_cisreg_1, "Down")
+```
+
+ 
+
+Enhancer 1 (rs4955320 cis-regulatory/ down-regulated genes):
+
+ 
+
+```{r, echo=FALSE}
+plot_expression_bp(obj=counts_disp, genes=downreg_1, enhancer="rs4955430")
+```
+
+ 
+
+Enhancer 1 (rs4955320 cis-regulatory/ up-regulated genes):
+
+ 
+
+```{r, echo=FALSE}
+plot_expression_bp(obj=counts_disp, genes=upreg_1, enhancer="rs4955430")
+```
+
+We can also view cis-regulatory changes from Deletions of Enhancer 3 at rs6446275:
+
+ 
+
+```{r}
+# get dysregulated genes
+upreg_3 <- get_altered(de_cisreg_3,"Up")
+downreg_3 <- get_altered(de_cisreg_3, "Down")
+```
+
+ 
+
+Enhancer 3 (rs6446275 cis-regulatory/ down-regulated genes):
+
+ 
+
+```{r, echo=FALSE, fig.height=3, fig.width=4}
+plot_expression_bp(obj=counts_disp, genes=downreg_3, enhancer="rs6446275")
+```
+
+ 
+
+Enhancer 3 (rs46446275 cis-regulatory/ up-regulated genes):
+
+ 
+
+```{r, echo=FALSE}
+plot_expression_bp(obj=counts_disp, genes=upreg_3, enhancer="rs6446275")
+```
+
+Finally, we can view cis-regulatory changes from Deletions of (non)Enhancer 15 at rs10947532:
+
+ 
+
+```{r}
+# get dysregulated genes
+upreg_15 <- get_altered(de_cisreg_15,"Up")
+downreg_15 <- get_altered(de_cisreg_15, "Down")
+```
+
+ 
+
+(non)Enhancer 15 (rs10947532 cis-regulatory/ down-regulated genes):
+
+ 
+
+```{r, echo=FALSE}
+plot_expression_bp(obj=counts_disp, genes=downreg_15, enhancer="rs10947532")
+```
+
+ 
+
+(non)Enhancer 15 (rs10947532 cis-regulatory/ up-regulated genes):
+
+ 
+
+```{r, echo=FALSE, fig.height=3, fig.width=4}
+plot_expression_bp(obj=counts_disp, genes=upreg_15, enhancer="rs10947532")
+```
+
+## Cis-Chromosomal Differential Expression
+
+With a larger gene set comprising all genes on the same chromosome as each enhancer deletion, we can look at trends in differential expression in a more general sense. Below we repeat the analysis with these larger gene sets.
+
+ 
+
+```{r}
+de_chrom_1 <- test_diff_exp(fit=fit, coefficient="rs4955430_KO",
+                genes=get_genes(gene_sets, "rs4955430", "chrom"),
+                file.out="rs4955430-chrom-de.csv")
+de_chrom_3 <- test_diff_exp(fit=fit, coefficient="rs6446275_KO",
+                genes=get_genes(gene_sets, "rs6446275", "chrom"),
+                file.out="rs6446275-chrom-de.csv")
+de_chrom_15 <- test_diff_exp(fit=fit, coefficient="rs10947532_KO",
+                get_genes(gene_sets, "rs10947532", "chrom"),
+                file.out="rs10947532-chrom-de.csv")
+
+de_chrom <- list(de_chrom_1, de_chrom_3, de_chrom_15)
+summarize_outputs(de_chrom, exp_names)
+
+# get dysregulated genes at the chromosome level
+upreg_chrom_1 <- get_altered(de_chrom_1,"Up")
+downreg_chrom_1 <- get_altered(de_chrom_1, "Down")
+upreg_chrom_3 <- get_altered(de_chrom_3,"Up")
+downreg_chrom_3 <- get_altered(de_chrom_3, "Down")
+upreg_chrom_15 <- get_altered(de_chrom_15,"Up")
+downreg_chrom_15 <- get_altered(de_chrom_15, "Down")
+```
+
+Because of the number of genes involved, its easier to view these changes on a Mean-Difference plot:
+
+```{r, echo=FALSE}
+mypalette <- wes_palette("Zissou1", n=2, type="continuous")
+plot_MD <- function(de_obj, title, genes_to_label, upreg, downreg) {
+  df <- de_obj$table
+  genes <- rownames(df)
+  tolabel <- which(genes %in% genes_to_label)
+  labels <- rep("", nrow(df))
+  for(i in tolabel) {labels[i] <- rownames(df)[i]}
+  df$label <- labels
+  
+  upreg_idx <- which(genes %in% upreg)
+  downreg_idx <- which(genes %in% downreg)
+  
+  df$status <- rep("NS", nrow(df))
+  df$status[upreg_idx] <- "Up"
+  df$status[downreg_idx] <- "Down"
+  df$status <- factor(df$status, levels=c("Down", "NS", "Up"))
+  p1 <- ggplot(df) + ylim(c(-8,5)) +
+          geom_point(aes(x=logCPM, y=logFC, color=status)) +
+          scale_color_manual(values = c(mypalette[1], "grey50", mypalette[2])) + theme_minimal() +
+          theme(
+            axis.line.x=element_line(size=0.8, color="black"),
+              axis.line.y=element_line(size=0.8, color="black"),
+              axis.text.x=element_blank(),
+              panel.grid.minor=element_blank()
+          ) +
+          labs(fill="Status") +
+          ggtitle(title) +
+          ylab("Log Fold-Change (CPM)") +
+          xlab("Average Log Abundance (CPM)")
+  p2 <- p1 + geom_label_repel(data=df, max.overlaps=30,
+                              min.segment.length=0, force_pull = 0.5,
+                              aes(label=label, x=logCPM, y=logFC))
+  return(p2)
+}
+```
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+# plot chromosome MD plots
+library(gridExtra)
+
+chr_plt_1 <- plot_MD(de_chrom_1, "Mean-Difference: rs4955430 Chr3",
+                get_genes(gene_sets, "rs4955430", "cisreg"),
+                  upreg_chrom_1, downreg_chrom_1)
+chr_plt_3 <- plot_MD(de_chrom_3, "Mean-Difference: rs6446275 Chr3",
+                get_genes(gene_sets, "rs6446275", "cisreg"),
+                  upreg_chrom_3, downreg_chrom_3)
+chr_plt_15 <- plot_MD(de_chrom_15, "Mean-Difference: rs10947532 Chr3",
+                get_genes(gene_sets, "rs10947532", "cisreg"),
+                  upreg_chrom_15, downreg_chrom_15)
+
+
+grid.arrange(chr_plt_1,chr_plt_3,chr_plt_15, ncol=3,nrow=1)
+```
+
+## Global Differential Expression
+
+Finally, we can look at trends in differential expression at the global level.
+
+ 
+
+```{r}
+genes <- rownames(fit$fitted.values) 
+de_glob_1 <- test_diff_exp(fit=fit, coefficient="rs4955430_KO", genes=genes,
+                           file.out="rs4955430-global-de.csv")
+de_glob_3 <- test_diff_exp(fit=fit, coefficient="rs6446275_KO", genes=genes,
+                           file.out="rs6446275-global-de.csv")
+de_glob_15 <- test_diff_exp(fit=fit, coefficient="rs10947532_KO", genes=genes,
+                            file.out="rs10947532-global-de.csv")
+
+de_glob <- list(de_glob_1, de_glob_3, de_glob_15)
+summarize_outputs(de_glob, exp_names)
+
+# get dysregulated genes at the global level
+upreg_glob_1 <- get_altered(de_glob_1,"Up")
+downreg_glob_1 <- get_altered(de_glob_1, "Down")
+upreg_glob_3 <- get_altered(de_glob_3,"Up")
+downreg_glob_3 <- get_altered(de_glob_3, "Down")
+upreg_glob_15 <- get_altered(de_glob_15,"Up")
+downreg_glob_15 <- get_altered(de_glob_15, "Down")
+```
+
+Because of the number of genes involved, its again easier to view these changes on a Mean-Difference plot:
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+# plot chromosome MD plots
+library(gridExtra)
+
+glb_plt_1 <- plot_MD(de_glob_1, "Mean-Difference: rs4955430 Global",
+                get_genes(gene_sets, "rs4955430", "cisreg"),
+                  upreg_glob_1, downreg_glob_1)
+glb_plt_3 <- plot_MD(de_glob_3, "Mean-Difference: rs6446275 Global",
+                get_genes(gene_sets, "rs6446275", "cisreg"),
+                  upreg_glob_3, downreg_glob_3)
+glb_plt_15 <- plot_MD(de_glob_15, "Mean-Difference: rs10947532 Global",
+                get_genes(gene_sets, "rs10947532", "cisreg"),
+                  upreg_glob_15, downreg_glob_15)
+
+
+grid.arrange(glb_plt_1,glb_plt_3,glb_plt_15, ncol=3,nrow=1)
+```
